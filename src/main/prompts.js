@@ -3,6 +3,8 @@
 
 'use strict';
 
+const { normalizeLanguage } = require('../shared/i18n');
+
 const ANSWER_SCHEMA = {
   type: 'object',
   properties: {
@@ -35,58 +37,167 @@ const TEXT_ANSWER_SCHEMA = {
   additionalProperties: false
 };
 
-const SYSTEM_PROMPT = [
-  'Ты — эксперт по прохождению тестов. Тебе дают вопрос и варианты ответа с нумерацией с нуля.',
-  'Определи правильный вариант (или варианты, если вопрос множественный).',
-  'Отвечай ТОЛЬКО валидным JSON без markdown и пояснений вне JSON.',
-  'Схема: {"answers": [номер_варианта], "confidence": 0..1, "reason": "кратко"}.',
-  'answers содержит индексы правильных вариантов из списка. Для одиночного выбора — ровно один индекс.'
-].join(' ');
+/**
+ * Prompts sent to the model. They follow the interface language so the model
+ * answers in the same language as the test when needed, while JSON keys stay
+ * stable.
+ */
+const PROMPTS = {
+  ru: {
+    system: [
+      'Ты — эксперт по прохождению тестов. Тебе дают вопрос и варианты ответа с нумерацией с нуля.',
+      'Определи правильный вариант (или варианты, если вопрос множественный).',
+      'Отвечай ТОЛЬКО валидным JSON без markdown и пояснений вне JSON.',
+      'Схема: {"answers": [номер_варианта], "confidence": 0..1, "reason": "кратко"}.',
+      'answers содержит индексы правильных вариантов из списка. Для одиночного выбора — ровно один индекс.'
+    ].join(' '),
+    vision: [
+      'На скриншоте страница электронного теста.',
+      'Извлеки текст вопроса и все варианты ответа в том порядке, в котором они расположены.',
+      'Не решай вопрос, только распознай текст.',
+      'Верни JSON: {"question": "...", "options": ["вариант 1", "вариант 2"]}.'
+    ].join(' '),
+    textSystem: [
+      'Ты — эксперт по прохождению тестов. Ответ вводится в текстовое поле, вариантов выбора нет.',
+      'Определи, что именно нужно напечатать, и верни это строкой.',
+      'Отвечай ТОЛЬКО валидным JSON без markdown и пояснений вне JSON.',
+      'Схема: {"value": "то, что нужно ввести", "confidence": 0..1, "reason": "кратко"}.'
+    ].join(' '),
+    question: 'Вопрос:',
+    questionUnknown: '(текст вопроса не распознан, ориентируйся на варианты)',
+    questionUnknownShort: '(текст вопроса не распознан)',
+    options: 'Варианты ответа:',
+    typeMulti: 'Тип вопроса: множественный выбор. Верни все правильные индексы в answers.',
+    typeSingle: 'Тип вопроса: одиночный выбор. Верни ровно один индекс в answers.',
+    returnJson: 'Верни только JSON по схеме.',
+    itemsOrder: 'Пункты, которые нужно упорядочить (номера — как на странице):',
+    expectedFormat: 'Требование к формату из задания: {value}',
+    inputHint: 'Подпись поля ввода: {value}',
+    permutation:
+      'Верни в value правильный порядок номеров — ровно {count} цифр, каждая от 1 до {count}, без пробелов, запятых и других разделителей.',
+    permutationExample: 'Пример формата: 15432.',
+    textValue:
+      'Верни в value ровно то, что нужно ввести в поле (число, слово или короткую фразу, без кавычек и пояснений).',
+    retryPermutation:
+      'Предыдущий ответ не подошёл. Верни перестановку чисел 1..{count} без пробелов в поле value.',
+    retryText: 'Предыдущий ответ не подошёл. Верни только значение для поля ввода в value, без пояснений.',
+    retryJson: 'Предыдущий ответ не соответствовал схеме. Верни ТОЛЬКО JSON с индексами из списка.',
+    cliSystem: 'Ты — эксперт по тестам. Ответь на вопрос и верни ТОЛЬКО JSON.',
+    cliFormat:
+      'Формат: {"answers":[индексы правильных вариантов с нуля],"confidence":0..1,"reason":"кратко"}',
+    cliOptions: 'Варианты:',
+    cliMulti: 'Вопрос множественного выбора: верни все правильные индексы.',
+    cliSingle: 'Одиночный выбор: ровно один индекс.',
+    cliNoMarkdown: 'Без markdown, без пояснений вне JSON.'
+  },
 
-function buildUserPrompt(question, options, type, extraHint) {
+  en: {
+    system: [
+      'You are an expert at taking tests. You are given a question and answer options numbered from zero.',
+      'Determine the correct option (or options if the question is multiple-choice).',
+      'Reply with ONLY valid JSON, no markdown and no explanations outside JSON.',
+      'Schema: {"answers": [option_index], "confidence": 0..1, "reason": "brief"}.',
+      'answers contains the indexes of the correct options from the list. For single choice return exactly one index.'
+    ].join(' '),
+    vision: [
+      'The screenshot shows an electronic test page.',
+      'Extract the question text and all answer options in the order they appear.',
+      'Do not solve the question, only recognize the text.',
+      'Return JSON: {"question": "...", "options": ["option 1", "option 2"]}.'
+    ].join(' '),
+    textSystem: [
+      'You are an expert at taking tests. The answer goes into a text field; there are no options to choose.',
+      'Determine exactly what needs to be typed and return it as a string.',
+      'Reply with ONLY valid JSON, no markdown and no explanations outside JSON.',
+      'Schema: {"value": "what to enter", "confidence": 0..1, "reason": "brief"}.'
+    ].join(' '),
+    question: 'Question:',
+    questionUnknown: '(question text not recognized, rely on the options)',
+    questionUnknownShort: '(question text not recognized)',
+    options: 'Answer options:',
+    typeMulti: 'Question type: multiple choice. Return all correct indexes in answers.',
+    typeSingle: 'Question type: single choice. Return exactly one index in answers.',
+    returnJson: 'Return only JSON matching the schema.',
+    itemsOrder: 'Items to order (numbers as on the page):',
+    expectedFormat: 'Format requirement from the task: {value}',
+    inputHint: 'Input field label: {value}',
+    permutation:
+      'Return in value the correct order of the numbers — exactly {count} digits, each from 1 to {count}, without spaces, commas or other separators.',
+    permutationExample: 'Example format: 15432.',
+    textValue:
+      'Return in value exactly what needs to be entered into the field (a number, a word or a short phrase, without quotes or explanations).',
+    retryPermutation:
+      'The previous answer did not fit. Return a permutation of the numbers 1..{count} without spaces in the value field.',
+    retryText: 'The previous answer did not fit. Return only the value for the input field in value, without explanations.',
+    retryJson: 'The previous answer did not match the schema. Return ONLY JSON with indexes from the list.',
+    cliSystem: 'You are a test expert. Answer the question and return ONLY JSON.',
+    cliFormat:
+      'Format: {"answers":[zero-based indexes of the correct options],"confidence":0..1,"reason":"brief"}',
+    cliOptions: 'Options:',
+    cliMulti: 'Multiple-choice question: return all correct indexes.',
+    cliSingle: 'Single choice: exactly one index.',
+    cliNoMarkdown: 'No markdown, no explanations outside JSON.'
+  }
+};
+
+function langOf(language) {
+  return normalizeLanguage(language);
+}
+
+function textOf(language, key, params) {
+  const dict = PROMPTS[langOf(language)];
+  let text = dict[key];
+  if (text === undefined) text = PROMPTS.en[key];
+  if (params) {
+    for (const [name, value] of Object.entries(params)) {
+      text = text.split(`{${name}}`).join(String(value == null ? '' : value));
+    }
+  }
+  return text;
+}
+
+function getSystemPrompt(language) {
+  return textOf(language, 'system');
+}
+
+function getVisionPrompt(language) {
+  return textOf(language, 'vision');
+}
+
+function getTextSystemPrompt(language) {
+  return textOf(language, 'textSystem');
+}
+
+/** Builds the user message for a choice question in the selected language. */
+function buildUserPrompt(question, options, type, extraHint, language) {
+  const L = (key, params) => textOf(language, key, params);
   const lines = [];
-  lines.push('Вопрос:');
-  lines.push(question && question.trim() ? question.trim() : '(текст вопроса не распознан, ориентируйся на варианты)');
+  lines.push(L('question'));
+  lines.push(question && question.trim() ? question.trim() : L('questionUnknown'));
   lines.push('');
-  lines.push('Варианты ответа:');
+  lines.push(L('options'));
   options.forEach((opt, i) => {
     lines.push(`${i}) ${String(opt.text || '').replace(/\s+/g, ' ').trim()}`);
   });
   lines.push('');
-  lines.push(type === 'multi'
-    ? 'Тип вопроса: множественный выбор. Верни все правильные индексы в answers.'
-    : 'Тип вопроса: одиночный выбор. Верни ровно один индекс в answers.');
+  lines.push(type === 'multi' ? L('typeMulti') : L('typeSingle'));
   if (extraHint) {
     lines.push('');
     lines.push(extraHint);
   }
   lines.push('');
-  lines.push('Верни только JSON по схеме.');
+  lines.push(L('returnJson'));
   return lines.join('\n');
 }
 
-function buildMessages(question, options, type, extraHint) {
+function buildMessages(question, options, type, extraHint, language) {
   return [
-    { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: buildUserPrompt(question, options, type, extraHint) }
+    { role: 'system', content: getSystemPrompt(language) },
+    { role: 'user', content: buildUserPrompt(question, options, type, extraHint, language) }
   ];
 }
 
-const VISION_PROMPT = [
-  'На скриншоте страница электронного теста.',
-  'Извлеки текст вопроса и все варианты ответа в том порядке, в котором они расположены.',
-  'Не решай вопрос, только распознай текст.',
-  'Верни JSON: {"question": "...", "options": ["вариант 1", "вариант 2"]}.'
-].join(' ');
-
 /* ------------------------- text answers ------------------------- */
-
-const TEXT_SYSTEM_PROMPT = [
-  'Ты — эксперт по прохождению тестов. Ответ вводится в текстовое поле, вариантов выбора нет.',
-  'Определи, что именно нужно напечатать, и верни это строкой.',
-  'Отвечай ТОЛЬКО валидным JSON без markdown и пояснений вне JSON.',
-  'Схема: {"value": "то, что нужно ввести", "confidence": 0..1, "reason": "кратко"}.'
-].join(' ');
 
 /** Finds the numbered list inside a question ("1. ...", "2) ..."). */
 function parseItems(text) {
@@ -98,51 +209,82 @@ function parseItems(text) {
   return items;
 }
 
-function buildTextPrompt(q, extraHint) {
+function buildTextPrompt(q, extraHint, language) {
+  const L = (key, params) => textOf(language, key, params);
   const items = Array.isArray(q.items) ? q.items : [];
   const lines = [];
-  lines.push('Вопрос:');
-  lines.push(q.question && String(q.question).trim() ? String(q.question).trim() : '(текст вопроса не распознан)');
+  lines.push(L('question'));
+  lines.push(q.question && String(q.question).trim() ? String(q.question).trim() : L('questionUnknownShort'));
 
   if (items.length > 1) {
     lines.push('');
-    lines.push('Пункты, которые нужно упорядочить (номера — как на странице):');
+    lines.push(L('itemsOrder'));
     items.forEach((item) => lines.push(`${item.n}) ${item.text}`));
   }
 
   if (q.expectedFormat) {
     lines.push('');
-    lines.push(`Требование к формату из задания: ${q.expectedFormat}`);
+    lines.push(L('expectedFormat', { value: q.expectedFormat }));
   }
   if (q.inputHint) {
     lines.push('');
-    lines.push(`Подпись поля ввода: ${q.inputHint}`);
+    lines.push(L('inputHint', { value: q.inputHint }));
   }
 
   lines.push('');
   if (items.length > 1) {
-    lines.push(
-      `Верни в value правильный порядок номеров — ровно ${items.length} цифр, каждая от 1 до ${items.length}, без пробелов, запятых и других разделителей.`
-    );
-    lines.push('Пример формата: 15432.');
+    lines.push(L('permutation', { count: items.length }));
+    lines.push(L('permutationExample'));
   } else {
-    lines.push('Верни в value ровно то, что нужно ввести в поле (число, слово или короткую фразу, без кавычек и пояснений).');
+    lines.push(L('textValue'));
   }
   if (extraHint) {
     lines.push('');
     lines.push(extraHint);
   }
   lines.push('');
-  lines.push('Верни только JSON по схеме.');
+  lines.push(L('returnJson'));
   return lines.join('\n');
 }
 
-function buildTextMessages(q, extraHint) {
+function buildTextMessages(q, extraHint, language) {
   return [
-    { role: 'system', content: TEXT_SYSTEM_PROMPT },
-    { role: 'user', content: buildTextPrompt(q, extraHint) }
+    { role: 'system', content: getTextSystemPrompt(language) },
+    { role: 'user', content: buildTextPrompt(q, extraHint, language) }
   ];
 }
+
+/** Retry hints in the selected language. */
+function buildRetryHint(q, language) {
+  if (q.type === 'text') {
+    const count = Array.isArray(q.items) ? q.items.length : 0;
+    if (count > 1) return textOf(language, 'retryPermutation', { count });
+    return textOf(language, 'retryText');
+  }
+  return textOf(language, 'retryJson');
+}
+
+/** opencode CLI has no system/user split, so the whole prompt is one string. */
+function buildCliPrompt(question, options, type, language) {
+  const L = (key) => textOf(language, key);
+  const lines = [];
+  lines.push(L('cliSystem'));
+  lines.push(L('cliFormat'));
+  lines.push('');
+  lines.push(L('question'));
+  lines.push(question && question.trim() ? question.trim() : L('questionUnknownShort'));
+  lines.push('');
+  lines.push(L('cliOptions'));
+  options.forEach((opt, i) => lines.push(`${i}) ${String(opt.text || '').replace(/\s+/g, ' ').trim()}`));
+  lines.push('');
+  lines.push(type === 'multi' ? L('cliMulti') : L('cliSingle'));
+  lines.push(L('cliNoMarkdown'));
+  return lines.join('\n');
+}
+
+const SYSTEM_PROMPT = getSystemPrompt('en');
+const VISION_PROMPT = getVisionPrompt('en');
+const TEXT_SYSTEM_PROMPT = getTextSystemPrompt('en');
 
 function isPermutation(digits, count) {
   if (!digits || digits.length !== count) return false;
@@ -327,13 +469,19 @@ module.exports = {
   ANSWER_SCHEMA,
   VISION_SCHEMA,
   TEXT_ANSWER_SCHEMA,
+  PROMPTS,
   SYSTEM_PROMPT,
   VISION_PROMPT,
   TEXT_SYSTEM_PROMPT,
+  getSystemPrompt,
+  getVisionPrompt,
+  getTextSystemPrompt,
   buildMessages,
   buildUserPrompt,
   buildTextMessages,
   buildTextPrompt,
+  buildRetryHint,
+  buildCliPrompt,
   parseItems,
   parseJson,
   normalizeAnswer,

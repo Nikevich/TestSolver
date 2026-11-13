@@ -5,37 +5,42 @@
 
 const ollama = require('./llm/ollama');
 const opencode = require('./llm/opencode');
-const { matchOptions, parseItems, normalizeTextAnswer } = require('./prompts');
+const { matchOptions, parseItems, normalizeTextAnswer, buildRetryHint } = require('./prompts');
+const { languageOf } = require('../shared/i18n');
 
-function mockChoiceAnswer(q) {
+function mockChoiceAnswer(q, language) {
   const options = q.options || [];
   const index = Math.floor(Math.random() * Math.max(1, options.length));
   return {
     answers: [index],
     confidence: 0.99,
-    reason: 'mock: ответ выбран случайно',
+    reason: language === 'ru' ? 'mock: ответ выбран случайно' : 'mock: answer chosen at random',
     backend: 'mock',
     model: 'mock'
   };
 }
 
 /** Mock keeps the pipeline testable without a model: ascending order for lists. */
-function mockTextAnswer(q) {
+function mockTextAnswer(q, language) {
   const items = q.items || [];
   const value = items.length > 1
     ? items.map((_, i) => String(i + 1)).join('')
     : '42';
+  const reason = language === 'ru' ? 'mock: значение по умолчанию' : 'mock: default value';
   return {
-    value: normalizeTextAnswer({ value, confidence: 0.99, reason: 'mock: значение по умолчанию' }, { items }).value,
+    value: normalizeTextAnswer({ value, confidence: 0.99, reason }, { items }).value,
     confidence: 0.99,
-    reason: 'mock: значение по умолчанию',
+    reason,
     backend: 'mock',
     model: 'mock'
   };
 }
 
 async function ask(cfg, q, extraHint, opts = {}) {
-  if (cfg.backend === 'mock') return q.type === 'text' ? mockTextAnswer(q) : mockChoiceAnswer(q);
+  const language = languageOf(cfg);
+  if (cfg.backend === 'mock') {
+    return q.type === 'text' ? mockTextAnswer(q, language) : mockChoiceAnswer(q, language);
+  }
 
   if (cfg.backend === 'opencode') {
     return q.type === 'text'
@@ -48,15 +53,8 @@ async function ask(cfg, q, extraHint, opts = {}) {
     : ollama.solve(cfg, q.question, q.options, q.type, extraHint, opts);
 }
 
-function retryHint(q) {
-  if (q.type === 'text') {
-    const count = Array.isArray(q.items) ? q.items.length : 0;
-    if (count > 1) {
-      return `Предыдущий ответ не подошёл. Верни перестановку чисел 1..${count} без пробелов в поле value.`;
-    }
-    return 'Предыдущий ответ не подошёл. Верни только значение для поля ввода в value, без пояснений.';
-  }
-  return 'Предыдущий ответ не соответствовал схеме. Верни ТОЛЬКО JSON с индексами из списка.';
+function retryHint(q, language) {
+  return buildRetryHint(q, language);
 }
 
 /** One question -> answer. Retries once when the model returns garbage. */
@@ -65,7 +63,7 @@ async function solveQuiz(cfg, q, { signal } = {}) {
     return await ask(cfg, q, undefined, { signal });
   } catch (err) {
     if (signal && signal.aborted) throw err;
-    return ask(cfg, q, retryHint(q), { signal });
+    return ask(cfg, q, retryHint(q, languageOf(cfg)), { signal });
   }
 }
 

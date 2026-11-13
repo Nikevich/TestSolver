@@ -16,6 +16,7 @@ const {
   pageHtmlScript
 } = require('./dom');
 const solver = require('./solver');
+const { t, languageOf } = require('../shared/i18n');
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -29,9 +30,20 @@ class Runner extends EventEmitter {
     this.running = false;
     this.abort = null;
     this.cfg = null;
-    this.message = 'Готов к запуску';
+    this.messageKey = 'runner.ready';
+    this.messageParams = {};
+    this.level = 'info';
     this.stats = this.emptyStats();
     this.visionUsed = 0;
+  }
+
+  lang() {
+    return languageOf(this.getConfig());
+  }
+
+  setMessage(key, params = {}) {
+    this.messageKey = key;
+    this.messageParams = params;
   }
 
   emptyStats() {
@@ -54,7 +66,8 @@ class Runner extends EventEmitter {
       : 0;
     return {
       running: this.running,
-      message: this.message,
+      message: t(this.lang(), this.messageKey, this.messageParams),
+      level: this.level,
       startedAt: this.stats.startedAt,
       answered: this.stats.answered,
       failures: this.stats.failures,
@@ -77,12 +90,13 @@ class Runner extends EventEmitter {
   }
 
   start() {
-    if (this.running) return { ok: false, error: 'Автопрогон уже запущен' };
+    if (this.running) return { ok: false, error: t(this.lang(), 'runner.alreadyRunning') };
 
     this.cfg = this.getConfig();
     this.running = true;
     this.abort = new AbortController();
-    this.message = 'Подготовка...';
+    this.setMessage('runner.preparing');
+    this.level = 'info';
     this.stats = this.emptyStats();
     this.stats.startedAt = Date.now();
     this.visionUsed = 0;
@@ -96,29 +110,30 @@ class Runner extends EventEmitter {
 
     this.run().catch((err) => {
       if (!this.running) return;
-      this.finish(`Ошибка: ${err.message}`, 'error');
+      this.finish('runner.error', 'error', { message: err.message });
     });
 
     return { ok: true };
   }
 
   stop() {
-    if (!this.running) return { ok: false, error: 'Автопрогон не запущен' };
-    this.finish('Остановлено пользователем');
+    if (!this.running) return { ok: false, error: t(this.lang(), 'runner.notRunning') };
+    this.finish('runner.stopped');
     return { ok: true };
   }
 
-  finish(message, level = 'info') {
+  finish(key, level = 'info', params = {}) {
     if (!this.running) return;
     this.running = false;
-    this.message = message;
+    this.setMessage(key, params);
+    this.level = level;
     try {
       if (this.abort) this.abort.abort();
     } catch (_) {
       /* ignore */
     }
     const status = this.status();
-    this.logger[level === 'error' ? 'error' : 'info'](message, { answered: status.answered });
+    this.logger[level === 'error' ? 'error' : 'info'](status.message, { answered: status.answered });
     this.emitStatus();
     this.emit('finished', status);
   }
@@ -128,24 +143,27 @@ class Runner extends EventEmitter {
     let q = await this.waitForQuestion();
     if (!q) {
       await this.dumpPage('no-question');
-      throw new Error('Не удалось найти ни вариантов ответа, ни поля ввода на странице');
+      throw new Error(t(this.lang(), 'runner.noQuestion'));
     }
 
     while (this.running) {
       if (cfg['automation.maxQuestions'] > 0 && this.stats.answered >= cfg['automation.maxQuestions']) {
-        this.finish('Достигнут лимит вопросов');
+        this.finish('runner.limitReached');
         return;
       }
       if (q.qnum && q.total && q.qnum > q.total) {
-        this.finish('Все вопросы пройдены');
+        this.finish('runner.allPassed');
         return;
       }
 
       this.stats.qnum = q.qnum;
       this.stats.total = q.total;
       this.stats.lastQuestion = q.question;
-      this.message = `Отправляю вопрос ${q.qnum || this.stats.answered + 1} в ${cfg.backend}`;
-      if (cfg['automation.dryRun']) this.message += ' (dry run)';
+      this.setMessage('runner.sendingQuestion', {
+        num: q.qnum || this.stats.answered + 1,
+        backend: cfg.backend,
+        suffix: cfg['automation.dryRun'] ? ' (dry run)' : ''
+      });
       this.emitStatus();
 
       const startedAt = Date.now();
@@ -157,18 +175,18 @@ class Runner extends EventEmitter {
         this.stats.failures += 1;
         this.logger.error('Не удалось получить ответ', { error: err.message, raw: err.raw });
         if (this.stats.failures >= Number(cfg['automation.maxParseFailures'])) {
-          throw new Error(`Много ошибок подряд: ${err.message}`);
+          throw new Error(t(this.lang(), 'runner.tooManyErrors', { message: err.message }));
         }
         await sleep(1500);
         q = await this.extract();
         if (!Runner.usable(q)) {
           await this.dumpPage('lost-question');
-          throw new Error('Страница перестала быть доступной');
+          throw new Error(t(this.lang(), 'runner.pageUnavailable'));
         }
         continue;
       }
 
-      if (!result) throw new Error('Модель не вернула ответ');
+      if (!result) throw new Error(t(this.lang(), 'runner.noAnswer'));
       if (!this.running) return;
 
       let applied;
@@ -177,24 +195,26 @@ class Runner extends EventEmitter {
 
       if (q.type === 'text') {
         const value = String(result.value == null ? '' : result.value).trim();
-        if (!value) throw new Error('Модель не вернула значение для поля ввода');
+        if (!value) throw new Error(t(this.lang(), 'runner.noTextValue'));
         applied = await this.fillTextAnswer(value);
         if (!applied.ok) {
-          throw new Error(`Не удалось заполнить текстовое поле${applied.reason ? ` (${applied.reason})` : ''}`);
+          throw new Error(t(this.lang(), 'runner.fillFailed', {
+            reason: applied.reason ? ` (${applied.reason})` : ''
+          }));
         }
         chosen = [applied.value || value];
       } else {
         if (!Array.isArray(result.answers) || !result.answers.length) {
-          throw new Error('Модель не вернула ответ');
+          throw new Error(t(this.lang(), 'runner.noAnswer'));
         }
         const answers = result.answers.filter(
           (idx) => Number.isInteger(idx) && idx >= 0 && idx < q.options.length
         );
-        if (!answers.length) throw new Error('Ответ модели не соответствует вариантам на странице');
+        if (!answers.length) throw new Error(t(this.lang(), 'runner.answerMismatch'));
         effective = q.type === 'multi' ? answers : [answers[0]];
 
         applied = await this.clickAnswers(effective);
-        if (!applied.ok) throw new Error('Не удалось выбрать вариант на странице');
+        if (!applied.ok) throw new Error(t(this.lang(), 'runner.selectFailed'));
         chosen = effective.map((i) => q.options[i].text);
       }
 
@@ -233,7 +253,7 @@ class Runner extends EventEmitter {
         cfg['automation.stopOnLowConfidence'] &&
         Number(result.confidence) < Number(cfg['automation.minConfidence'])
       ) {
-        this.finish(`Остановлено: низкая уверенность модели (${result.confidence})`);
+        this.finish('runner.lowConfidence', 'info', { confidence: result.confidence });
         return;
       }
 
@@ -249,13 +269,13 @@ class Runner extends EventEmitter {
       cfg['automation.dryRun'] || cfg['automation.mode'] === 'confirm' || !cfg['automation.clickNext'];
 
     if (manual) {
-      this.message = 'Ответ выбран, жду перехода к следующему вопросу';
+      this.setMessage('runner.answerSelected');
       this.emitStatus();
       return this.waitForNext(q.pageSig, 0);
     }
 
     const delay = this.nextDelay(cfg);
-    this.message = `Пауза ${(delay / 1000).toFixed(1)} с перед «Продолжить»`;
+    this.setMessage('runner.pauseBeforeContinue', { seconds: (delay / 1000).toFixed(1) });
     this.emitStatus();
     await sleep(delay);
     if (!this.running) return null;
@@ -270,14 +290,14 @@ class Runner extends EventEmitter {
     }
 
     const wc = this.getWebContents();
-    if (!wc || wc.isDestroyed()) throw new Error('Окно браузера закрыто');
+    if (!wc || wc.isDestroyed()) throw new Error(t(this.lang(), 'runner.browserClosed'));
 
     const clicked = await wc.executeJavaScript(clickNextScript(), true).catch((err) => ({
       ok: false,
       reason: err.message
     }));
     if (!clicked || !clicked.ok) {
-      this.finish('Кнопка «Продолжить» не найдена — остановка');
+      this.finish('runner.nextNotFound');
       return null;
     }
     this.logger.info('Нажата кнопка', { text: clicked.text });
@@ -288,7 +308,7 @@ class Runner extends EventEmitter {
 
     const next = await this.waitForNext(q.pageSig, Number(cfg['automation.questionChangeTimeoutMs']) || 15000);
     if (!next) {
-      if (this.running) this.finish('Вопрос не сменился за отведённое время — остановка');
+      if (this.running) this.finish('runner.questionNotChanged');
       return null;
     }
     return next;
@@ -303,7 +323,7 @@ class Runner extends EventEmitter {
 
   async clickAnswers(indexes) {
     const wc = this.getWebContents();
-    if (!wc || wc.isDestroyed()) throw new Error('Окно браузера закрыто');
+    if (!wc || wc.isDestroyed()) throw new Error(t(this.lang(), 'runner.browserClosed'));
     const dryRun = Boolean(this.cfg && this.cfg['automation.dryRun']);
     for (const index of indexes) {
       const script = dryRun ? highlightOptionScript(index) : clickOptionScript(index);
@@ -315,7 +335,7 @@ class Runner extends EventEmitter {
 
   async fillTextAnswer(value) {
     const wc = this.getWebContents();
-    if (!wc || wc.isDestroyed()) throw new Error('Окно браузера закрыто');
+    if (!wc || wc.isDestroyed()) throw new Error(t(this.lang(), 'runner.browserClosed'));
     const dryRun = Boolean(this.cfg && this.cfg['automation.dryRun']);
 
     const result = await wc.executeJavaScript(dryRun ? highlightInputScript() : fillTextScript(value), true);
@@ -372,7 +392,7 @@ class Runner extends EventEmitter {
       if (Runner.usable(result)) return result;
       attempts += 1;
       if (attempts === 10) {
-        this.message = 'Всё ещё ищу вопрос на странице...';
+        this.setMessage('runner.stillLooking');
         this.emitStatus();
       }
       await sleep(700);
@@ -401,10 +421,10 @@ class Runner extends EventEmitter {
         noOptions += 1;
         if (noOptions >= 3) {
           if (result.resultHint) {
-            this.finish('Тест завершён (страница результатов)');
+            this.finish('runner.finished');
           } else {
             await this.dumpPage('no-question');
-            this.finish('На странице больше нет вариантов ответа — остановка');
+            this.finish('runner.noOptions');
           }
           return null;
         }
@@ -445,14 +465,14 @@ class Runner extends EventEmitter {
 
   async askVision(q) {
     this.visionUsed += 1;
-    this.message = 'Распознаю вопрос по скриншоту (vision)';
+    this.setMessage('runner.visionRecognizing');
     this.emitStatus();
     const wc = this.getWebContents();
-    if (!wc || wc.isDestroyed()) throw new Error('Окно браузера закрыто');
+    if (!wc || wc.isDestroyed()) throw new Error(t(this.lang(), 'runner.browserClosed'));
 
     const capture = async () => {
       const image = await wc.capturePage();
-      if (!image || image.isEmpty()) throw new Error('Пустой скриншот страницы');
+      if (!image || image.isEmpty()) throw new Error(t(this.lang(), 'runner.emptyScreenshot'));
       const png = image.toPNG();
       if (this.cfg['vision.saveScreenshots']) {
         try {

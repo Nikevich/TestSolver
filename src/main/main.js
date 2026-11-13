@@ -23,6 +23,7 @@ const { pageHtmlScript } = require('./dom');
 const ollama = require('./llm/ollama');
 const opencode = require('./llm/opencode');
 const { GROUPS, FIELDS } = require('../shared/schema');
+const { t, languageOf } = require('../shared/i18n');
 const IPC = require('../shared/ipc');
 
 app.setName('TestSolver');
@@ -335,14 +336,15 @@ function registerIpc() {
 
   ipcMain.handle(IPC.LLM_TEST, async () => {
     const cfg = config.flat();
+    const lang = languageOf(cfg);
     try {
-      if (cfg.backend === 'mock') return { ok: true, text: 'mock готов' };
+      if (cfg.backend === 'mock') return { ok: true, text: t(lang, 'llm.mockReady') };
       if (cfg.backend === 'opencode') {
         const result = await opencode.test(cfg);
         return result;
       }
       const data = await ollama.chat(cfg, {
-        messages: [{ role: 'user', content: 'Ответь одним словом: ping' }]
+        messages: [{ role: 'user', content: t(lang, 'llm.ping') }]
       });
       return { ok: true, text: String(data.content || '').slice(0, 200) };
     } catch (err) {
@@ -403,7 +405,7 @@ function registerIpc() {
   ipcMain.handle(IPC.ANSWERS_EXPORT, async () => {
     if (!answers.length) return { ok: false, error: 'Журнал пуст' };
     const result = await dialog.showSaveDialog(mainWindow, {
-      title: 'Экспорт ответов',
+      title: t(languageOf(config.flat()), 'dialog.exportAnswers'),
       defaultPath: path.join(app.getPath('documents'), `testsolver-answers-${Date.now()}.json`),
       filters: [
         { name: 'JSON', extensions: ['json'] },
@@ -468,27 +470,17 @@ function registerIpc() {
   }));
 
   ipcMain.handle(IPC.APP_ABOUT, async () => {
-    const buttons = ['Текст лицензии', 'Коммерческая лицензия', 'Закрыть'];
-    const detail = [
-      'Copyright (C) 2026 Shkilevich Nikita',
-      '',
-      'Лицензия: GNU Affero General Public License v3.0 (AGPL-3.0-only)',
-      'или коммерческая лицензия.',
-      '',
-      'Программа распространяется в надежде, что она будет полезной, но',
-      'БЕЗ КАКИХ-ЛИБО ГАРАНТИЙ; без подразумеваемых гарантий товарной',
-      'пригодности или пригодности для конкретной цели.',
-      '',
-      'Имя и логотип TestSolver не покрываются лицензией на код.',
-      '',
-      'Приложение включает Electron (MIT) и Chromium (BSD-3-Clause и другие).',
-      'Уведомления: LICENSE.electron.txt и LICENSES.chromium.html рядом',
-      'с исполняемым файлом.'
-    ].join('\n');
+    const lang = languageOf(config.flat());
+    const buttons = [
+      t(lang, 'about.licenseText'),
+      t(lang, 'about.commercialLicense'),
+      t(lang, 'about.close')
+    ];
+    const detail = t(lang, 'about.detail');
 
     const result = await dialog.showMessageBox(mainWindow, {
       type: 'info',
-      title: 'О программе',
+      title: t(lang, 'about.title'),
       message: `TestSolver ${app.getVersion()}`,
       detail,
       buttons,

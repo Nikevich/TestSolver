@@ -203,6 +203,7 @@ Any missing key falls back to its default. **Сбросить всё к умол
 | `logging.answersJsonl` | `true` | Write `answers.jsonl`, one line per question |
 | `logging.rotateMb` | `10` | `app.log` size before rotation, MB |
 | `logging.level` | `info` | Log verbosity: `debug`, `info`, `warn`, `error` |
+| `ui.language` | `en` | Interface language: `en` or `ru`; also run statuses and model prompts |
 | `ui.panelWidth` | `400` | Right panel width, px; also changed by dragging |
 | `ui.theme` | `system` | Theme: system, dark or light |
 

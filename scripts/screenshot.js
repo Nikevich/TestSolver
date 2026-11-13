@@ -7,7 +7,7 @@
  * Renders the panel UI with stubbed IPC data and saves a PNG screenshot.
  * Used to eyeball layout/CSS changes without a running backend.
  *
- *   electron scripts/screenshot.js [out.png]
+ *   electron scripts/screenshot.js [out.png] [--en|--ru]
  */
 
 const fs = require('fs');
@@ -19,11 +19,15 @@ const { GROUPS, FIELDS, defaultsObject } = require('../src/shared/schema');
 
 app.disableHardwareAcceleration();
 
-const outFile = process.argv[2] || path.join(os.tmpdir(), 'testsolver-ui.png');
+const args = process.argv.slice(2);
+const language = args.includes('--ru') ? 'ru' : 'en';
+const outFile = args.find((arg) => /\.png$/i.test(arg)) || path.join(os.tmpdir(), `testsolver-ui-${language}.png`);
 
 function stubPreload() {
   const config = defaultsObject();
   config['automation.startUrl'] = 'https://orioks.miet.ru/student/student';
+  config.ui = config.ui || {};
+  config.ui.language = language;
 
   const data = {
     config,
@@ -51,7 +55,7 @@ function stubPreload() {
     },
     status: {
       running: false,
-      message: 'Готов к запуску',
+      message: language === 'ru' ? 'Готов к запуску' : 'Ready to start',
       answered: 0,
       total: 0,
       avgMs: 0,
@@ -73,11 +77,20 @@ function stubPreload() {
 const { contextBridge } = require('electron');
 const DATA = ${JSON.stringify(data)};
 const noop = () => () => {};
+const setPath = (obj, key, value) => {
+  const parts = key.split('.');
+  let node = obj;
+  for (let i = 0; i < parts.length - 1; i += 1) {
+    if (!node[parts[i]] || typeof node[parts[i]] !== 'object') node[parts[i]] = {};
+    node = node[parts[i]];
+  }
+  node[parts[parts.length - 1]] = value;
+};
 contextBridge.exposeInMainWorld('api', {
   config: {
     get: async () => DATA.config,
     schema: async () => DATA.schema,
-    set: async (key, value) => { DATA.config[key] = value; return DATA.config; },
+    set: async (key, value) => { setPath(DATA.config, key, value); return DATA.config; },
     setMany: async () => DATA.config,
     reset: async () => DATA.config,
     resetAll: async () => DATA.config,
@@ -109,7 +122,7 @@ contextBridge.exposeInMainWorld('api', {
   logs: { tail: async () => DATA.log, openFolder: async () => {}, onLine: noop },
   answers: { list: async () => DATA.answers, export: async () => ({ ok: false, canceled: true }), onNew: noop },
   layout: { setPanelWidth: async () => 400, onPanelWidth: noop },
-  app: { info: async () => DATA.info, ready: async () => true, onThemeChanged: noop }
+  app: { info: async () => DATA.info, about: async () => ({ ok: true }), ready: async () => true, onThemeChanged: noop }
 });
 `,
     'utf8'

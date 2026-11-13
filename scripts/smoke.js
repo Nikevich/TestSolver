@@ -66,6 +66,11 @@ async function main() {
   check('config: backend default is ollama', defaults.backend === 'ollama', defaults.backend);
   check('config: delay default is 3000', defaults['automation'] && defaults['automation'].delayMs === 3000, defaults['automation']);
   check('config: maxQuestions default is 0', defaults['automation'] && defaults['automation'].maxQuestions === 0);
+  check(
+    'config: interface language default is en',
+    defaults['ui'] && defaults['ui'].language === 'en',
+    defaults['ui']
+  );
 
   store.set('automation.delayMs', 999999);
   check('config: number is clamped to max', store.get('automation.delayMs') === 120000, store.get('automation.delayMs'));
@@ -221,7 +226,7 @@ async function main() {
   check('auto: answered all 6 questions', answered === 6, answered);
   check(
     'auto: reached the result page',
-    status && /заверш/i.test(status.message),
+    status && /completed|заверш/i.test(status.message),
     status && status.message
   );
 
@@ -285,7 +290,7 @@ async function main() {
       schema: { groups: GROUPS, fields: FIELDS },
       models: { ok: true, models: [{ name: 'qwen2.5:7b-instruct' }] },
       health: { ollama: { ok: true, models: ['qwen2.5:7b-instruct'] }, opencode: { ok: true } },
-      status: { running: false, message: 'Готов', answered: 0, total: 0, avgMs: 0 },
+      status: { running: false, message: 'Ready to start', answered: 0, total: 0, avgMs: 0 },
       info: {
         version: 'test',
         configPath: cfgPath,
@@ -305,10 +310,19 @@ async function main() {
 const { contextBridge } = require('electron');
 const DATA = ${JSON.stringify(stubData)};
 const noop = () => () => {};
+const setPath = (obj, key, value) => {
+  const parts = key.split('.');
+  let node = obj;
+  for (let i = 0; i < parts.length - 1; i += 1) {
+    if (!node[parts[i]] || typeof node[parts[i]] !== 'object') node[parts[i]] = {};
+    node = node[parts[i]];
+  }
+  node[parts[parts.length - 1]] = value;
+};
 contextBridge.exposeInMainWorld('api', {
   config: {
     get: async () => DATA.config, schema: async () => DATA.schema,
-    set: async (key, value) => { DATA.config[key] = value; return DATA.config; },
+    set: async (key, value) => { setPath(DATA.config, key, value); return DATA.config; },
     setMany: async () => DATA.config, reset: async () => DATA.config,
     resetAll: async () => DATA.config, path: async () => DATA.info.configPath, onChanged: noop
   },
@@ -384,11 +398,60 @@ contextBridge.exposeInMainWorld('api', {
       .catch(() => null);
 
     check('ui: about link present', aboutState && aboutState.exists === true, aboutState);
-    check('ui: about link labelled', aboutState && aboutState.label === 'О программе');
+    check('ui: about link labelled', aboutState && aboutState.label === 'About', aboutState);
     check(
       'ui: about link is wired to the main process',
       aboutState && aboutState.hasApi === true && aboutState.threw === false,
       aboutState
+    );
+
+    // --- interface language switching ---------------------------------
+    const switchLanguage = (code) =>
+      ui.webContents
+        .executeJavaScript(
+          `(async () => {
+            const select = document.querySelector('#settings-form [data-key="ui.language"]');
+            if (!select) return { missing: true };
+            select.value = ${JSON.stringify(code)};
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            await new Promise((resolve) => setTimeout(resolve, 400));
+            return {
+              lang: document.documentElement.lang,
+              controlTab: document.querySelector('[data-tab="control"]').textContent.trim(),
+              start: document.getElementById('btn-start').textContent.trim(),
+              settingsTab: document.querySelector('[data-tab="settings"]').textContent.trim(),
+              about: document.getElementById('about-link').textContent.trim(),
+              backendOption: document.querySelector('#backend option').textContent.trim(),
+              status: document.getElementById('status-message').textContent.trim(),
+              statusLength: document.getElementById('status-message').textContent.trim().length
+            };
+          })()`,
+          true
+        )
+        .catch(() => null);
+
+    const ruState = await switchLanguage('ru');
+    check(
+      'ui: switching to ru translates the interface',
+      ruState &&
+        ruState.lang === 'ru' &&
+        ruState.controlTab === 'Управление' &&
+        ruState.settingsTab === 'Настройки' &&
+        ruState.about === 'О программе' &&
+        ruState.backendOption === 'Ollama (локально)',
+      ruState
+    );
+
+    const enState = await switchLanguage('en');
+    check(
+      'ui: switching back to en restores English',
+      enState &&
+        enState.lang === 'en' &&
+        enState.controlTab === 'Control' &&
+        enState.settingsTab === 'Settings' &&
+        enState.about === 'About' &&
+        enState.backendOption === 'Ollama (local)',
+      enState
     );
 
     ui.destroy();

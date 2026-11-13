@@ -8,13 +8,14 @@ const {
   ANSWER_SCHEMA,
   VISION_SCHEMA,
   TEXT_ANSWER_SCHEMA,
-  VISION_PROMPT,
+  getVisionPrompt,
   buildMessages,
   buildTextMessages,
   parseJson,
   normalizeAnswer,
   normalizeTextAnswer
 } = require('../prompts');
+const { languageOf } = require('../../shared/i18n');
 
 function joinUrl(base, path) {
   return `${String(base || 'http://127.0.0.1:11434').replace(/\/+$/, '')}${path}`;
@@ -89,7 +90,7 @@ async function chat(cfg, { messages, format, model, signal }) {
 
 async function solve(cfg, question, options, type, extraHint, { signal } = {}) {
   const { content } = await chat(cfg, {
-    messages: buildMessages(question, options, type, extraHint),
+    messages: buildMessages(question, options, type, extraHint, languageOf(cfg)),
     format: ANSWER_SCHEMA,
     signal
   });
@@ -105,7 +106,7 @@ async function solve(cfg, question, options, type, extraHint, { signal } = {}) {
 
 async function solveText(cfg, q, extraHint, { signal } = {}) {
   const { content } = await chat(cfg, {
-    messages: buildTextMessages(q, extraHint),
+    messages: buildTextMessages(q, extraHint, languageOf(cfg)),
     format: TEXT_ANSWER_SCHEMA,
     signal
   });
@@ -119,12 +120,13 @@ async function solveText(cfg, q, extraHint, { signal } = {}) {
 }
 
 async function visionExtract(cfg, pngBase64) {
+  const prompt = getVisionPrompt(languageOf(cfg));
   const { content } = await chat(cfg, {
     model: cfg['ollama.visionModel'],
     format: VISION_SCHEMA,
     messages: [
-      { role: 'system', content: VISION_PROMPT },
-      { role: 'user', content: VISION_PROMPT, images: [pngBase64] }
+      { role: 'system', content: prompt },
+      { role: 'user', content: prompt, images: [pngBase64] }
     ]
   });
   const parsed = parseJson(content);

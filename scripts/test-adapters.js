@@ -62,6 +62,7 @@ async function main() {
   const ollama = require('../src/main/llm/ollama');
   const fake = await startFakeOllama();
   const cfg = {
+    'ui.language': 'en',
     'ollama.url': `http://127.0.0.1:${fake.port}`,
     'ollama.model': 'test-model',
     'ollama.visionModel': 'vision-test',
@@ -100,6 +101,11 @@ async function main() {
     assert.ok(request.messages[1].content.includes('0) А'));
   });
 
+  check('ollama: english prompt by default', () => {
+    assert.ok(request.messages[0].content.startsWith('You are an expert'), request.messages[0].content);
+    assert.ok(request.messages[1].content.startsWith('Question:'), request.messages[1].content);
+  });
+
   const badHealth = await ollama.health({ ...cfg, 'ollama.url': 'http://127.0.0.1:1' });
   check('ollama: health reports failure', () => assert.strictEqual(badHealth.ok, false));
 
@@ -112,6 +118,7 @@ async function main() {
 
   const cliAnswer = await opencode.solve(
     {
+      'ui.language': 'en',
       'opencode.bin': 'opencode',
       'opencode.model': '',
       'opencode.timeoutMs': 180000

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,14 +10,14 @@
 <body>
   <header class="toolbar">
     <div class="nav-group">
-      <button id="btn-back" class="icon" title="Назад">&#8592;</button>
-      <button id="btn-forward" class="icon" title="Вперёд">&#8594;</button>
-      <button id="btn-reload" class="icon" title="Обновить">&#8635;</button>
+      <button id="btn-back" class="icon" title="Back" data-i18n-title="toolbar.back">&#8592;</button>
+      <button id="btn-forward" class="icon" title="Forward" data-i18n-title="toolbar.forward">&#8594;</button>
+      <button id="btn-reload" class="icon" title="Reload" data-i18n-title="toolbar.reload">&#8635;</button>
     </div>
-    <input id="url" class="url" type="text" spellcheck="false" placeholder="Адрес страницы теста, например orioks.miet.ru/..." />
-    <button id="btn-go" class="secondary">Перейти</button>
-    <button id="btn-open-test" class="secondary" title="Открыть сохранённый стартовый URL">Открыть тест</button>
-    <button id="btn-external" class="icon" title="Открыть в системном браузере">&#8599;</button>
+    <input id="url" class="url" type="text" spellcheck="false" placeholder="Test page address, e.g. orioks.miet.ru/..." data-i18n-placeholder="toolbar.urlPlaceholder" />
+    <button id="btn-go" class="secondary" data-i18n="toolbar.go">Go</button>
+    <button id="btn-open-test" class="secondary" title="Open the saved start URL" data-i18n="toolbar.openTest" data-i18n-title="toolbar.openTestTitle">Open test</button>
+    <button id="btn-external" class="icon" title="Open in the system browser" data-i18n-title="toolbar.externalTitle">&#8599;</button>
   </header>
 
   <main class="main">
@@ -25,9 +25,9 @@
       <div class="placeholder-card">
         <div class="placeholder-icon">&#128269;</div>
         <h1>TestSolver</h1>
-        <p>Вставьте адрес страницы теста в строку сверху и нажмите «Перейти».<br />
-          Логин и пароль вводятся прямо в этом окне — сессия сохранится.</p>
-        <p class="muted">Дальше: выберите модель в панели справа и нажмите «Старт».</p>
+        <p><span data-i18n="placeholder.line1">Paste the test page address into the bar above and click “Go”.</span><br />
+          <span data-i18n="placeholder.line2">Log in right in this window — the session will be saved.</span></p>
+        <p class="muted" data-i18n="placeholder.line3">Next: choose a model in the right panel and click “Start”.</p>
       </div>
     </div>
 
@@ -35,63 +35,63 @@
       <div class="splitter" id="splitter"></div>
 
       <nav class="tabs">
-        <button class="tab active" data-tab="control">Управление</button>
-        <button class="tab" data-tab="settings">Настройки</button>
-        <button class="tab" data-tab="log">Лог</button>
-        <button class="tab" data-tab="answers">Ответы</button>
+        <button class="tab active" data-tab="control" data-i18n="tabs.control">Control</button>
+        <button class="tab" data-tab="settings" data-i18n="tabs.settings">Settings</button>
+        <button class="tab" data-tab="log" data-i18n="tabs.log">Log</button>
+        <button class="tab" data-tab="answers" data-i18n="tabs.answers">Answers</button>
       </nav>
 
       <div class="tab-body">
         <section class="pane active" id="pane-control">
           <div class="field">
-            <div class="field-head"><span class="field-label">Бэкенд</span></div>
+            <div class="field-head"><span class="field-label" data-i18n="control.backend">Backend</span></div>
             <select id="backend"></select>
           </div>
 
           <div class="field">
             <div class="field-head">
-              <span class="field-label">Модель</span>
-              <button id="btn-refresh-models" class="link" title="Обновить список моделей">обновить</button>
+              <span class="field-label" data-i18n="control.model">Model</span>
+              <button id="btn-refresh-models" class="link" title="Refresh the model list" data-i18n="control.refresh" data-i18n-title="control.refreshTitle">refresh</button>
             </div>
             <select id="model"></select>
             <div class="field-help" id="model-hint"></div>
           </div>
 
           <div class="field">
-            <div class="field-head"><span class="field-label">Скачать модель (Ollama)</span></div>
+            <div class="field-head"><span class="field-label" data-i18n="control.downloadModel">Download model (Ollama)</span></div>
             <div class="inline">
               <input id="pull-model" type="text" spellcheck="false" placeholder="qwen2.5:7b-instruct" />
-              <button id="btn-pull" class="secondary">Скачать</button>
+              <button id="btn-pull" class="secondary" data-i18n="control.download">Download</button>
             </div>
             <div class="field-help" id="pull-status"></div>
           </div>
 
           <div class="grid2">
             <div class="field">
-              <div class="field-head"><span class="field-label">Задержка, мс</span></div>
+              <div class="field-head"><span class="field-label" data-i18n="control.delay">Delay, ms</span></div>
               <input id="delay" type="number" min="0" step="100" />
             </div>
             <div class="field">
-              <div class="field-head"><span class="field-label">Лимит вопросов</span></div>
+              <div class="field-head"><span class="field-label" data-i18n="control.maxQuestions">Question limit</span></div>
               <input id="max-questions" type="number" min="0" step="1" />
             </div>
           </div>
 
           <div class="field checks">
-            <label class="check"><input type="checkbox" id="vision" /> Vision-фолбэк</label>
-            <label class="check"><input type="checkbox" id="dry-run" /> Dry run (без кликов)</label>
-            <label class="check"><input type="checkbox" id="click-next" /> Нажимать «Продолжить»</label>
+            <label class="check"><input type="checkbox" id="vision" /> <span data-i18n="control.visionFallback">Vision fallback</span></label>
+            <label class="check"><input type="checkbox" id="dry-run" /> <span data-i18n="control.dryRun">Dry run (no clicks)</span></label>
+            <label class="check"><input type="checkbox" id="click-next" /> <span data-i18n="control.clickNext">Click “Continue”</span></label>
           </div>
 
           <div class="actions">
-            <button id="btn-start" class="primary">&#9654; Старт</button>
-            <button id="btn-stop" class="danger" disabled>&#9632; Стоп</button>
+            <button id="btn-start" class="primary" data-i18n="control.start">&#9654; Start</button>
+            <button id="btn-stop" class="danger" disabled data-i18n="control.stop">&#9632; Stop</button>
           </div>
 
           <div class="field progress-card">
             <div class="progress-head">
               <span id="progress-count">0 / &mdash;</span>
-              <span id="progress-msg" class="muted">Готов к запуску</span>
+              <span id="progress-msg" class="muted" data-i18n="control.ready">Ready to start</span>
             </div>
             <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
             <div id="current-question" class="current-question muted"></div>
@@ -99,19 +99,20 @@
           </div>
 
           <div class="field">
-            <button id="btn-test-llm" class="secondary">Проверить связь с моделью</button>
+            <button id="btn-test-llm" class="secondary" data-i18n="control.testLlm">Test model connection</button>
             <div class="field-help" id="llm-test-result"></div>
           </div>
 
           <div class="hint">
-            Горячая клавиша: <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd> — старт/стоп.
+            <span data-i18n="control.hotkeyPrefix">Hotkey:</span> <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd>
+            <span data-i18n="control.hotkeySuffix">— start/stop.</span>
           </div>
         </section>
 
         <section class="pane" id="pane-settings">
           <div class="settings-head">
-            <button id="btn-reset-all" class="secondary">Сбросить всё к умолчаниям</button>
-            <button id="btn-open-logs" class="secondary">Папка логов</button>
+            <button id="btn-reset-all" class="secondary" data-i18n="settings.resetAll">Reset all to defaults</button>
+            <button id="btn-open-logs" class="secondary" data-i18n="settings.openLogs">Logs folder</button>
           </div>
           <div id="settings-form"></div>
           <div class="hint" id="config-path"></div>
@@ -119,23 +120,29 @@
 
         <section class="pane" id="pane-log">
           <div class="settings-head">
-            <button id="btn-log-refresh" class="secondary">Обновить</button>
-            <button id="btn-log-open" class="secondary">Папка логов</button>
-            <button id="btn-dump-html" class="secondary" title="Сохранить HTML текущей страницы для диагностики">HTML страницы</button>
-            <button id="btn-log-clear" class="secondary">Очистить вид</button>
+            <button id="btn-log-refresh" class="secondary" data-i18n="log.refresh">Refresh</button>
+            <button id="btn-log-open" class="secondary" data-i18n="log.openFolder">Logs folder</button>
+            <button id="btn-dump-html" class="secondary" title="Save the current page HTML for diagnostics" data-i18n="log.dumpHtml" data-i18n-title="log.dumpHtmlTitle">Page HTML</button>
+            <button id="btn-log-clear" class="secondary" data-i18n="log.clear">Clear view</button>
           </div>
           <pre id="log" class="log"></pre>
         </section>
 
         <section class="pane" id="pane-answers">
           <div class="settings-head">
-            <button id="btn-export" class="secondary">Экспорт</button>
+            <button id="btn-export" class="secondary" data-i18n="answers.export">Export</button>
             <span class="muted" id="answers-count"></span>
           </div>
           <div class="answers-wrap">
             <table class="answers">
               <thead>
-                <tr><th>#</th><th>Вопрос</th><th>Ответ</th><th>Conf.</th><th>мс</th></tr>
+                <tr>
+                  <th data-i18n="answers.num">#</th>
+                  <th data-i18n="answers.question">Question</th>
+                  <th data-i18n="answers.answer">Answer</th>
+                  <th data-i18n="answers.confidence">Conf.</th>
+                  <th data-i18n="answers.ms">ms</th>
+                </tr>
               </thead>
               <tbody id="answers-body"></tbody>
             </table>
@@ -146,22 +153,23 @@
   </main>
 
   <footer class="statusbar">
-    <span class="dot" id="dot-ollama"></span><span id="ollama-status">Ollama: проверка...</span>
+    <span class="dot" id="dot-ollama"></span><span id="ollama-status" data-i18n="status.ollamaChecking">Ollama: checking...</span>
     <span class="sep">&middot;</span>
-    <span class="dot" id="dot-opencode"></span><span id="opencode-status">opencode: проверка...</span>
+    <span class="dot" id="dot-opencode"></span><span id="opencode-status" data-i18n="status.opencodeChecking">opencode: checking...</span>
     <span class="sep">&middot;</span>
     <span id="status-progress">0 / &mdash;</span>
     <span class="sep">&middot;</span>
-    <span id="status-avg">ср. 0 мс</span>
+    <span id="status-avg">avg 0 ms</span>
     <span class="spacer"></span>
-    <span id="status-message" class="muted">Готов</span>
+    <span id="status-message" class="muted" data-i18n="status.ready">Ready</span>
     <span class="sep">&middot;</span>
-    <button id="about-link" class="link about-link" title="О программе, лицензия и исходный код">О программе</button>
+    <button id="about-link" class="link about-link" title="About the app, license and source code" data-i18n="about.link" data-i18n-title="about.linkTitle">About</button>
   </footer>
 
   <div id="toasts" class="toasts"></div>
   <datalist id="models-datalist"></datalist>
 
+  <script src="i18n.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

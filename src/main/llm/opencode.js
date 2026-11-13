@@ -7,7 +7,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFile } = require('child_process');
-const { ANSWER_SCHEMA, buildTextPrompt, parseJson, normalizeAnswer, normalizeTextAnswer } = require('../prompts');
+const { ANSWER_SCHEMA, buildTextPrompt, buildCliPrompt, parseJson, normalizeAnswer, normalizeTextAnswer } = require('../prompts');
+const { languageOf, t } = require('../../shared/i18n');
 
 function execFileP(file, args, options = {}) {
   return new Promise((resolve, reject) => {
@@ -220,22 +221,6 @@ function runCli(binary, args, { timeoutMs = 180000, signal } = {}) {
   });
 }
 
-function buildPrompt(question, options, type) {
-  const lines = [];
-  lines.push('Ты — эксперт по тестам. Ответь на вопрос и верни ТОЛЬКО JSON.');
-  lines.push('Формат: {"answers":[индексы правильных вариантов с нуля],"confidence":0..1,"reason":"кратко"}');
-  lines.push('');
-  lines.push('Вопрос:');
-  lines.push(question && question.trim() ? question.trim() : '(текст вопроса не распознан)');
-  lines.push('');
-  lines.push('Варианты:');
-  options.forEach((opt, i) => lines.push(`${i}) ${String(opt.text || '').replace(/\s+/g, ' ').trim()}`));
-  lines.push('');
-  lines.push(type === 'multi' ? 'Вопрос множественного выбора: верни все правильные индексы.' : 'Одиночный выбор: ровно один индекс.');
-  lines.push('Без markdown, без пояснений вне JSON.');
-  return lines.join('\n');
-}
-
 async function listModels(cfg) {
   const binary = await resolveBinary(cfg['opencode.bin']);
   const { stdout } = await runCli(binary, ['models'], { timeoutMs: 30000 });
@@ -249,7 +234,7 @@ async function listModels(cfg) {
 
 async function solve(cfg, question, options, type, extraHint, { signal } = {}) {
   const binary = await resolveBinary(cfg['opencode.bin']);
-  const prompt = buildPrompt(question, options, type) + (extraHint ? `\n\n${extraHint}` : '');
+  const prompt = buildCliPrompt(question, options, type, languageOf(cfg)) + (extraHint ? `\n\n${extraHint}` : '');
   const args = ['run'];
   const model = String(cfg['opencode.model'] || '').trim();
   if (model) args.push('-m', model);
@@ -286,7 +271,7 @@ async function solve(cfg, question, options, type, extraHint, { signal } = {}) {
 
 async function solveText(cfg, q, extraHint, { signal } = {}) {
   const binary = await resolveBinary(cfg['opencode.bin']);
-  const prompt = buildTextPrompt(q, extraHint);
+  const prompt = buildTextPrompt(q, extraHint, languageOf(cfg));
   const args = ['run'];
   const model = String(cfg['opencode.model'] || '').trim();
   if (model) args.push('-m', model);
@@ -331,7 +316,7 @@ async function health(cfg) {
 
 async function test(cfg) {
   const binary = await resolveBinary(cfg['opencode.bin']);
-  const { stdout } = await runCli(binary, ['run', '--format', 'json', 'Ответь одним словом: ping'], {
+  const { stdout } = await runCli(binary, ['run', '--format', 'json', t(languageOf(cfg), 'llm.ping')], {
     timeoutMs: 120000
   });
   const parsed = parseOutput(stdout);

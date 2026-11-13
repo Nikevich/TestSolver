@@ -123,6 +123,7 @@ File: `%APPDATA%\TestSolver\config.json` (in portable mode, next to the exe). Cr
 | `logging.answersJsonl` | `true` | Write `answers.jsonl` — one line per question. |
 | `logging.rotateMb` | `10` | `app.log` size before rotation, MB. |
 | `logging.level` | `info` | Log verbosity: `debug`, `info`, `warn`, `error`. |
+| `ui.language` | `en` | Interface language: `en` or `ru`; run statuses and model prompts follow it as well. |
 | `ui.panelWidth` | `400` | Side panel width, px; adjustable by dragging. |
 | `ui.theme` | `system` | Theme: same as the system, dark, or light. |
 

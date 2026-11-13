@@ -4,6 +4,8 @@
 'use strict';
 
 const $ = (id) => document.getElementById(id);
+const tr = (key, params) => window.I18N.t(key, params);
+const pick = (value) => window.I18N.pick(value);
 
 const state = {
   config: {},
@@ -17,14 +19,14 @@ const state = {
 
 document.addEventListener('DOMContentLoaded', () => {
   init().catch((err) => {
-    toast(`Ошибка инициализации: ${err.message}`, 'error');
+    toast(tr('toast.initError', { message: err.message }), 'error');
     console.error(err);
   });
 });
 
 async function init() {
   if (!window.api) {
-    document.body.innerHTML = '<pre style="padding:20px">Не удалось загрузить preload-скрипт.</pre>';
+    document.body.innerHTML = `<pre style="padding:20px">${tr('toast.preloadError')}</pre>`;
     return;
   }
 
@@ -45,6 +47,8 @@ async function init() {
   state.schema = schema;
   state.info = info;
 
+  window.I18N.setLanguage(getPath(config, 'ui.language'));
+  applyStaticTranslations();
   buildSettingsForm();
   fillBackendOptions();
   applyConfig(config);
@@ -61,9 +65,13 @@ async function init() {
 
 function subscribe() {
   window.api.config.onChanged((config) => {
+    const previousLanguage = window.I18N.getLanguage();
     state.config = config;
     applyConfig(config);
     applyTheme(getPath(config, 'ui.theme'));
+
+    const nextLanguage = window.I18N.normalize(getPath(config, 'ui.language'));
+    if (nextLanguage !== previousLanguage) reloadLanguage(nextLanguage);
   });
 
   window.api.browser.onState((browser) => {
@@ -75,10 +83,15 @@ function subscribe() {
     if (event.type === 'status') {
       renderStatus(event.status);
     } else if (event.type === 'answer') {
-      toast(`Ответ на вопрос ${event.record.qnum ?? ''} выбран (${Math.round((event.record.confidence || 0) * 100)}%)`, 'ok');
+      const record = event.record;
+      toast(tr('toast.answerChosen', {
+        qnum: record.qnum ?? '',
+        percent: Math.round((record.confidence || 0) * 100)
+      }), 'ok');
     } else if (event.type === 'finished') {
       renderStatus(event.status);
-      toast(event.status.message, event.status.message.startsWith('Ошибка') ? 'error' : 'ok');
+      const isError = event.status.level === 'error' || String(event.status.message || '').startsWith('Ошибка') || String(event.status.message || '').startsWith('Error');
+      toast(event.status.message, isError ? 'error' : 'ok');
     }
   });
 
@@ -98,7 +111,7 @@ function wireToolbar() {
   $('btn-open-test').addEventListener('click', async () => {
     const result = await window.api.browser.openTest();
     if (result && result.ok === false) {
-      toast(result.error || 'Не удалось открыть тест', 'error');
+      toast(result.error || tr('browser.openTestFailed'), 'error');
       url.focus();
     }
   });
@@ -123,7 +136,7 @@ function wireToolbar() {
       return;
     }
     window.api.browser.navigate(value).then((result) => {
-      if (result && result.ok === false) toast(result.error || 'Не удалось перейти', 'error');
+      if (result && result.ok === false) toast(result.error || tr('browser.navigateFailed'), 'error');
     });
   }
 }
@@ -144,7 +157,7 @@ function wireAbout() {
   $('about-link').addEventListener('click', async () => {
     const result = await window.api.app.about().catch((err) => ({ ok: false, error: err.message }));
     if (result && result.ok === false) {
-      toast(result.error || 'Не удалось открыть окно «О программе»', 'error');
+      toast(result.error || tr('about.openFailed'), 'error');
     }
   });
 }
@@ -189,18 +202,18 @@ function wireControlPane() {
   $('btn-pull').addEventListener('click', async () => {
     const model = $('pull-model').value.trim();
     if (!model) {
-      toast('Укажите имя модели', 'error');
+      toast(tr('model.nameRequired'), 'error');
       return;
     }
     $('btn-pull').disabled = true;
-    $('pull-status').textContent = `Скачивание ${model}...`;
+    $('pull-status').textContent = tr('pull.downloading', { model });
     const result = await window.api.llm.pull(model);
     $('btn-pull').disabled = false;
     if (result && result.ok === false) {
-      $('pull-status').textContent = `Ошибка: ${result.error}`;
-      toast(result.error || 'Не удалось скачать модель', 'error');
+      $('pull-status').textContent = tr('pull.error', { error: result.error });
+      toast(result.error || tr('model.failed'), 'error');
     } else {
-      $('pull-status').textContent = `Модель ${model} готова`;
+      $('pull-status').textContent = tr('pull.ready', { model });
       await refreshModels(true);
       await refreshHealth();
     }
@@ -216,14 +229,14 @@ function wireControlPane() {
   $('btn-stop').addEventListener('click', stopRun);
 
   $('btn-test-llm').addEventListener('click', async () => {
-    $('llm-test-result').textContent = 'Проверяю...';
+    $('llm-test-result').textContent = tr('llm.testing');
     const result = await window.api.llm.test();
     if (result && result.ok) {
-      $('llm-test-result').textContent = `OK: ${result.text || 'ответ получен'}`;
-      toast('Связь с моделью работает', 'ok');
+      $('llm-test-result').textContent = tr('llm.ok', { text: result.text || tr('llm.answerReceived') });
+      toast(tr('llm.connected'), 'ok');
     } else {
-      $('llm-test-result').textContent = `Ошибка: ${(result && result.error) || 'нет ответа'}`;
-      toast((result && result.error) || 'Модель не отвечает', 'error');
+      $('llm-test-result').textContent = tr('llm.error', { error: (result && result.error) || tr('llm.noResponse') });
+      toast((result && result.error) || tr('llm.notResponding'), 'error');
     }
   });
 }
@@ -232,7 +245,7 @@ function fillBackendOptions() {
   const field = state.schema.fields.find((f) => f.key === 'backend');
   if (!field) return;
   $('backend').innerHTML = (field.options || [])
-    .map((option) => `<option value="${escapeAttr(option.value)}">${escapeHtml(option.label)}</option>`)
+    .map((option) => `<option value="${escapeAttr(option.value)}">${escapeHtml(pick(option.label))}</option>`)
     .join('');
   $('backend').value = state.config.backend || 'ollama';
 }
@@ -256,15 +269,15 @@ function bindCheckbox(id, key) {
 async function startRun() {
   const result = await window.api.automation.start();
   if (!result || result.ok === false) {
-    toast((result && result.error) || 'Не удалось запустить', 'error');
+    toast((result && result.error) || tr('run.startFailed'), 'error');
     return;
   }
-  toast('Автопрогон запущен', 'ok');
+  toast(tr('run.started'), 'ok');
 }
 
 async function stopRun() {
   const result = await window.api.automation.stop();
-  if (result && result.ok === false) toast((result && result.error) || 'Автопрогон не запущен', 'error');
+  if (result && result.ok === false) toast((result && result.error) || tr('run.notRunning'), 'error');
 }
 
 function modelKey() {
@@ -283,8 +296,8 @@ async function refreshModels(showToast = false) {
   fillModelSelect();
 
   if (showToast) {
-    if (result.ok) toast(`Моделей найдено: ${state.models.length}`, 'ok');
-    else toast(result.error || 'Не удалось получить список моделей', 'error');
+    if (result.ok) toast(tr('model.found', { count: state.models.length }), 'ok');
+    else toast(result.error || tr('model.failed'), 'error');
   }
 }
 
@@ -294,20 +307,20 @@ function fillModelSelect() {
   const current = key ? String(getPath(state.config, key) || '') : '';
 
   if (!key) {
-    select.innerHTML = '<option value="">— не требуется —</option>';
+    select.innerHTML = `<option value="">${escapeHtml(tr('model.noneRequired'))}</option>`;
     select.disabled = true;
-    $('model-hint').textContent = 'Mock-бэкенд отвечает случайным вариантом, модель не нужна.';
+    $('model-hint').textContent = tr('model.mockHint');
     return;
   }
 
   select.disabled = false;
   const options = [];
   if (key === 'opencode.model') {
-    options.push({ value: '', label: 'по умолчанию (из opencode)' });
+    options.push({ value: '', label: tr('model.defaultFromOpencode') });
   }
   state.models.forEach((name) => options.push({ value: name, label: name }));
   if (current && !state.models.includes(current)) {
-    options.push({ value: current, label: `${current} (не найдена)` });
+    options.push({ value: current, label: tr('model.notFoundSuffix', { name: current }) });
   }
 
   select.innerHTML = options
@@ -321,11 +334,11 @@ function fillModelSelect() {
     .join('');
 
   if (key === 'ollama.model' && current && !state.models.includes(current)) {
-    $('model-hint').textContent = `Модель «${current}» не найдена в Ollama — скачайте её или выберите другую.`;
+    $('model-hint').textContent = tr('model.notFoundInOllama', { model: current });
   } else if (key === 'ollama.model') {
-    $('model-hint').textContent = 'Список берётся из Ollama (/api/tags).';
+    $('model-hint').textContent = tr('model.listFromOllama');
   } else {
-    $('model-hint').textContent = 'Список берётся из `opencode models`.';
+    $('model-hint').textContent = tr('model.listFromOpencode');
   }
 }
 
@@ -333,13 +346,13 @@ async function refreshHealth() {
   const health = await window.api.llm.health();
   setDot('dot-ollama', health.ollama && health.ollama.ok);
   $('ollama-status').textContent = health.ollama && health.ollama.ok
-    ? `Ollama OK · моделей: ${(health.ollama.models || []).length}`
-    : `Ollama: ${(health.ollama && health.ollama.error) || 'нет связи'}`;
+    ? tr('status.ollamaOk', { count: (health.ollama.models || []).length })
+    : tr('status.ollamaError', { error: (health.ollama && health.ollama.error) || tr('status.noConnection') });
 
   setDot('dot-opencode', health.opencode && health.opencode.ok);
   $('opencode-status').textContent = health.opencode && health.opencode.ok
-    ? 'opencode найден'
-    : `opencode: ${(health.opencode && health.opencode.error) || 'не найден'}`;
+    ? tr('status.opencodeFound')
+    : tr('status.opencodeError', { error: (health.opencode && health.opencode.error) || tr('status.opencodeNotFound') });
 }
 
 function setDot(id, ok) {
@@ -352,11 +365,11 @@ function setDot(id, ok) {
 
 function wireSettingsPane() {
   $('btn-reset-all').addEventListener('click', async () => {
-    if (!window.confirm('Сбросить все настройки к значениям по умолчанию?')) return;
+    if (!window.confirm(tr('settings.resetConfirm'))) return;
     state.config = await window.api.config.resetAll();
     applyConfig(state.config);
     await refreshModels();
-    toast('Настройки сброшены', 'ok');
+    toast(tr('settings.resetDone'), 'ok');
   });
 
   $('btn-open-logs').addEventListener('click', () => window.api.logs.openFolder());
@@ -364,16 +377,33 @@ function wireSettingsPane() {
   $('btn-log-refresh').addEventListener('click', () => refreshLog());
   $('btn-dump-html').addEventListener('click', async () => {
     const result = await window.api.browser.dumpHtml();
-    if (result && result.ok) toast(`HTML сохранён: ${result.path}`, 'ok');
-    else toast((result && result.error) || 'Не удалось сохранить HTML', 'error');
+    if (result && result.ok) toast(tr('files.htmlSaved', { path: result.path }), 'ok');
+    else toast((result && result.error) || tr('files.htmlSaveFailed'), 'error');
   });
   $('btn-log-clear').addEventListener('click', () => {
     $('log').textContent = '';
   });
   $('btn-export').addEventListener('click', async () => {
     const result = await window.api.answers.export();
-    if (result && result.ok) toast(`Сохранено: ${result.path}`, 'ok');
-    else if (result && !result.canceled) toast(result.error || 'Не удалось сохранить', 'error');
+    if (result && result.ok) toast(tr('files.saved', { path: result.path }), 'ok');
+    else if (result && !result.canceled) toast(result.error || tr('files.saveFailed'), 'error');
+  });
+
+  $('settings-form').addEventListener('change', async (event) => {
+    const control = event.target.closest('[data-key]');
+    if (!control) return;
+    const key = control.dataset.key;
+    const type = control.dataset.type;
+    const value = type === 'boolean' ? control.checked : control.value;
+
+    state.config = await window.api.config.set(key, value);
+
+    if (key === 'ui.language') {
+      await reloadLanguage(value);
+    } else {
+      applyConfig(state.config, control);
+    }
+    if (key === 'backend') await refreshModels();
   });
 }
 
@@ -390,7 +420,7 @@ function buildSettingsForm() {
     const section = document.createElement('div');
     section.className = 'settings-group';
     const title = document.createElement('h3');
-    title.textContent = group.title;
+    title.textContent = pick(group.title);
     section.appendChild(title);
 
     fields.forEach((field) => {
@@ -402,21 +432,21 @@ function buildSettingsForm() {
 
       const label = document.createElement('span');
       label.className = 'field-label';
-      label.textContent = field.label;
+      label.textContent = pick(field.label);
 
       const right = document.createElement('span');
       const def = document.createElement('span');
       def.className = 'field-default';
-      def.textContent = `по умолчанию: ${formatDefault(field)}`;
+      def.textContent = tr('settings.default', { value: formatDefault(field) });
 
       const reset = document.createElement('button');
       reset.className = 'field-reset';
       reset.textContent = '↺';
-      reset.title = 'Сбросить к умолчанию';
+      reset.title = tr('settings.resetField');
       reset.addEventListener('click', async () => {
         state.config = await window.api.config.reset(field.key);
         applyConfig(state.config);
-        toast(`«${field.label}» сброшено`, 'ok');
+        toast(tr('settings.resetFieldDone', { label: pick(field.label) }), 'ok');
       });
 
       right.appendChild(def);
@@ -431,7 +461,7 @@ function buildSettingsForm() {
         (field.options || []).forEach((option) => {
           const opt = document.createElement('option');
           opt.value = option.value;
-          opt.textContent = option.label;
+          opt.textContent = pick(option.label);
           control.appendChild(opt);
         });
       } else if (field.type === 'boolean') {
@@ -440,7 +470,7 @@ function buildSettingsForm() {
         control = document.createElement('input');
         control.type = 'checkbox';
         const text = document.createElement('span');
-        text.textContent = 'включено';
+        text.textContent = tr('settings.enabled');
         wrap.appendChild(control);
         wrap.appendChild(text);
         row.appendChild(wrap);
@@ -454,7 +484,7 @@ function buildSettingsForm() {
         }
         if (modelKeys.has(field.key)) {
           control.setAttribute('list', 'models-datalist');
-          control.placeholder = 'начните вводить имя модели';
+          control.placeholder = tr('settings.modelPlaceholder');
         }
       }
 
@@ -465,7 +495,7 @@ function buildSettingsForm() {
       if (field.help) {
         const help = document.createElement('div');
         help.className = 'field-help';
-        help.textContent = field.help;
+        help.textContent = pick(field.help);
         row.appendChild(help);
       }
 
@@ -474,28 +504,17 @@ function buildSettingsForm() {
 
     container.appendChild(section);
   });
-
-  container.addEventListener('change', async (event) => {
-    const control = event.target.closest('[data-key]');
-    if (!control) return;
-    const key = control.dataset.key;
-    const type = control.dataset.type;
-    const value = type === 'boolean' ? control.checked : control.value;
-
-    state.config = await window.api.config.set(key, value);
-    applyConfig(state.config, control);
-    if (key === 'backend') await refreshModels();
-  });
 }
 
 function formatDefault(field) {
-  if (field.type === 'boolean') return field.default ? 'да' : 'нет';
+  if (field.type === 'boolean') return field.default ? tr('common.yes') : tr('common.no');
   if (field.type === 'select') {
     const option = (field.options || []).find((o) => o.value === field.default);
-    return option ? option.label : String(field.default);
+    return option ? pick(option.label) : String(field.default);
   }
   if (field.default === '' || field.default === undefined) return '—';
-  return `${field.default}${field.unit ? ` ${field.unit}` : ''}`;
+  const unit = field.unit ? ` ${pick(field.unit)}` : '';
+  return `${field.default}${unit}`;
 }
 
 /* --------------------------- config render ----------------------- */
@@ -557,14 +576,14 @@ function renderStatus(status) {
   $('model').disabled = running || !modelKey();
 
   $('progress-count').textContent = `${answered} / ${total || '—'}`;
-  $('progress-msg').textContent = (status && status.message) || 'Готов к запуску';
+  $('progress-msg').textContent = (status && status.message) || tr('control.ready');
   $('bar-fill').style.width = total ? `${Math.min(100, (answered / total) * 100)}%` : answered ? '100%' : '0%';
   $('current-question').textContent = status && status.lastQuestion ? status.lastQuestion : '';
   $('last-answer').textContent = status && status.lastAnswer ? `→ ${status.lastAnswer}` : '';
 
   $('status-progress').textContent = `${answered} / ${total || '—'}`;
-  $('status-avg').textContent = `ср. ${status && status.avgMs ? status.avgMs : 0} мс`;
-  $('status-message').textContent = (status && status.message) || 'Готов';
+  $('status-avg').textContent = tr('status.avg', { ms: status && status.avgMs ? status.avgMs : 0 });
+  $('status-message').textContent = (status && status.message) || tr('status.ready');
 }
 
 /* ----------------------------- log ------------------------------- */
@@ -597,7 +616,7 @@ async function refreshAnswers() {
   const body = $('answers-body');
   body.innerHTML = '';
   list.forEach((record) => addAnswerRow(record, false, false));
-  $('answers-count').textContent = `записей: ${list.length}`;
+  $('answers-count').textContent = tr('answers.count', { count: list.length });
 }
 
 function addAnswerRow(record, isLive, scroll = true) {
@@ -615,7 +634,7 @@ function addAnswerRow(record, isLive, scroll = true) {
   else body.appendChild(row);
 
   const count = body.childNodes.length;
-  $('answers-count').textContent = `записей: ${count}`;
+  $('answers-count').textContent = tr('answers.count', { count });
 }
 
 /* --------------------------- splitter ---------------------------- */
@@ -664,10 +683,33 @@ function applyTheme(theme) {
   else document.documentElement.dataset.theme = theme;
 }
 
+function applyStaticTranslations() {
+  document.documentElement.lang = window.I18N.getLanguage();
+  document.querySelectorAll('[data-i18n]').forEach((element) => {
+    element.textContent = tr(element.dataset.i18n);
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach((element) => {
+    element.title = tr(element.dataset.i18nTitle);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach((element) => {
+    element.placeholder = tr(element.dataset.i18nPlaceholder);
+  });
+}
+
+async function reloadLanguage(language) {
+  window.I18N.setLanguage(language);
+  applyStaticTranslations();
+  fillBackendOptions();
+  buildSettingsForm();
+  applyConfig(state.config);
+  renderStatus(await window.api.automation.status());
+  await Promise.all([refreshHealth(), refreshAnswers()]);
+}
+
 function renderPullProgress(progress) {
   const status = progress.status || '';
   if (progress.done || status === 'success') {
-    $('pull-status').textContent = `Модель ${progress.model} готова`;
+    $('pull-status').textContent = tr('pull.ready', { model: progress.model });
     return;
   }
   const total = progress.total || 0;
@@ -679,8 +721,8 @@ function renderPullProgress(progress) {
 }
 
 function formatBytes(bytes) {
-  if (!bytes) return '0 Б';
-  const units = ['Б', 'КБ', 'МБ', 'ГБ'];
+  if (!bytes) return tr('bytes.zero');
+  const units = [tr('bytes.b'), tr('bytes.kb'), tr('bytes.mb'), tr('bytes.gb')];
   const index = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
   return `${(bytes / 1024 ** index).toFixed(1)} ${units[index]}`;
 }

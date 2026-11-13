@@ -123,6 +123,7 @@
 | `logging.answersJsonl` | `true` | 写入 `answers.jsonl` —— 每题一行。 |
 | `logging.rotateMb` | `10` | `app.log` 轮转前的大小，MB。 |
 | `logging.level` | `info` | 日志详细程度：`debug`、`info`、`warn`、`error`。 |
+| `ui.language` | `en` | 界面语言：`en` 或 `ru`；运行状态与模型提示词也随之切换。 |
 | `ui.panelWidth` | `400` | 侧边栏宽度，px；可拖动调整。 |
 | `ui.theme` | `system` | 主题：跟随系统、深色或浅色。 |
 

@@ -203,6 +203,7 @@ TestSolver открывает страницу теста во встроенн�
 | `logging.answersJsonl` | `true` | Писать `answers.jsonl` — по строке на каждый вопрос |
 | `logging.rotateMb` | `10` | Размер `app.log` до ротации, МБ |
 | `logging.level` | `info` | Подробность журнала: `debug`, `info`, `warn`, `error` |
+| `ui.language` | `en` | Язык интерфейса: `en` или `ru`; а также статусы прогона и промпты к модели |
 | `ui.panelWidth` | `400` | Ширина правой панели, px; меняется перетаскиванием |
 | `ui.theme` | `system` | Тема: как в системе, тёмная или светлая |
 
