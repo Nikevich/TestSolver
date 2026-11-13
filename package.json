@@ -1,0 +1,25 @@
+{
+  "name": "testsolver",
+  "version": "1.0.0",
+  "description": "Local test solver: reads questions from the built-in browser and answers them with Ollama or opencode",
+  "main": "src/main/main.js",
+  "author": "Shkilevich Nikita",
+  "license": "AGPL-3.0-only OR LicenseRef-Commercial",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "smoke": "electron scripts/smoke.js",
+    "test:adapters": "node scripts/test-adapters.js",
+    "icon": "node scripts/make-icon.js",
+    "screenshot": "electron scripts/screenshot.js",
+    "source:archive": "node scripts/source-archive.js",
+    "dist": "electron-builder --win nsis",
+    "dist:portable": "electron-builder --win portable",
+    "dist:all": "electron-builder --win nsis portable"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.18.0"
+  }
+}

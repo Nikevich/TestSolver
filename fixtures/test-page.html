@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Тест: Организация аудита информационной безопасности_1</title>
+  <style>
+    body { font: 15px/1.5 "Segoe UI", Arial, sans-serif; color: #222; margin: 0; background: #fff; }
+    .page { max-width: 1100px; margin: 0 auto; padding: 24px 32px 60px; }
+    h1 { font-size: 22px; font-weight: 600; margin: 0 0 16px; }
+    .meta { margin: 4px 0; }
+    .meta b { font-weight: 600; }
+    hr { border: none; border-top: 1px solid #e3e6ea; margin: 22px 0; }
+    .label { color: #333; margin-bottom: 6px; }
+    #question { font-size: 15.5px; margin-bottom: 12px; max-width: 980px; }
+    .options { border-collapse: collapse; width: 100%; max-width: 1050px; }
+    .options td { padding: 6px 4px; vertical-align: top; }
+    .options td.radio { width: 26px; padding-top: 9px; }
+    .options input { width: 15px; height: 15px; }
+    .stages { margin: 4px 0 14px; max-width: 980px; }
+    .stages .stage { padding: 3px 0; }
+    .answer input { width: 320px; padding: 7px 9px; font-size: 14px; border: 1px solid #b9c2cc; border-radius: 2px; }
+    .hint { color: #5b6670; font-size: 13px; margin: 8px 0 0; max-width: 940px; }
+    .error { color: #b42318; font-size: 13px; margin: 10px 0 0; }
+    #next { margin-top: 18px; background: #1287b0; color: #fff; border: none; padding: 10px 22px; font-size: 14px; cursor: pointer; border-radius: 2px; }
+    #next:hover { background: #0f7396; }
+    .results { margin-top: 30px; padding: 18px; border: 1px solid #dfe3e8; background: #f7f9fb; max-width: 640px; }
+    .results h2 { margin: 0 0 8px; font-size: 18px; }
+    .badge { display: inline-block; padding: 2px 8px; background: #e8f3ff; color: #0b5cad; border-radius: 3px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>Тест: Организация аудита информационной безопасности_1</h1>
+    <div class="meta">Текущий вопрос: <b id="qnum">1</b></div>
+    <div class="meta">Всего вопросов: <b id="total">6</b></div>
+    <div class="meta">Лимит времени: <b>00:45:00</b></div>
+    <div class="meta">Осталось: <b id="timer">0:44:55</b></div>
+    <hr />
+    <div id="content"></div>
+  </div>
+
+  <script>
+    const QUESTIONS = [
+      {
+        q: 'Аудит информационной безопасности —',
+        options: [
+          'независимое исследование состояния информационной системы, определения её адекватности существующим рискам, связанным с осуществлением угроз безопасности, соответствия её требованиям нормативных документов по защите информации, а также выявления существующих уязвимостей в области защиты информации и выработки рекомендаций по их устранению',
+          'экспертная оценка текущего уровня функционирования ИТ-инфраструктуры и выработка рекомендаций по повышению её эффективности',
+          'оценка состояния информационной системы, определения её адекватности существующим рискам, связанным с осуществлением угроз безопасности',
+          'все перечисленные варианты верны',
+          'процедура независимой оценки деятельности организации, информационной системы, процесса, проекта или продукта'
+        ],
+        correct: 0
+      },
+      {
+        q: 'Какой документ определяет требования к системе защиты персональных данных при их обработке в информационных системах?',
+        options: [
+          'Постановление Правительства РФ № 1119 от 01.11.2012',
+          'Федеральный закон № 152-ФЗ «О персональных данных»',
+          'Приказ ФСТЭК России № 21 от 18.02.2013',
+          'ГОСТ Р ИСО/МЭК 27001-2021'
+        ],
+        correct: 0
+      },
+      {
+        q: 'Установите правильную последовательность этапов проведения аудита информационной безопасности:',
+        text: true,
+        items: [
+          'Подготовка и планирование аудита, определение его границ и критериев',
+          'Сбор информации об объекте аудита и анализ документации',
+          'Проведение проверок, тестирование средств защиты и оценка соответствия',
+          'Формирование отчёта по результатам аудита с описанием выявленных недостатков',
+          'Разработка рекомендаций и устранение выявленных недостатков'
+        ],
+        hint: 'Ответ ввести в виде последовательности номеров вариантов без пробелов, например 12345.',
+        correct: '15432'
+      },
+      {
+        q: 'Что является объектом аудита информационной безопасности?',
+        options: [
+          'Информационная система и процессы обработки информации',
+          'Только серверное оборудование',
+          'Только персонал организации',
+          'Только документация по защите информации'
+        ],
+        correct: 0
+      },
+      {
+        q: 'Какой этап аудита информационной безопасности выполняется первым?',
+        options: [
+          'Планирование аудита и определение его границ',
+          'Сбор доказательств',
+          'Формирование отчёта',
+          'Устранение выявленных недостатков'
+        ],
+        correct: 0
+      },
+      {
+        q: 'Какая модель угроз используется при построении системы защиты информации?',
+        options: [
+          'Модель угроз безопасности информации, утверждённая в организации',
+          'Типовая модель нарушителя из открытых источников',
+          'Модель OSI',
+          'Модель зрелости CMMI'
+        ],
+        correct: 0
+      }
+    ];
+
+    const params = new URLSearchParams(location.search);
+    let index = Number(params.get('q') || 0);
+    if (!Number.isInteger(index) || index < 0 || index >= QUESTIONS.length) index = 0;
+
+    const content = document.getElementById('content');
+    const qnumEl = document.getElementById('qnum');
+    const totalEl = document.getElementById('total');
+    totalEl.textContent = String(QUESTIONS.length);
+
+    function renderQuestion() {
+      qnumEl.textContent = String(index + 1);
+      const item = QUESTIONS[index];
+      content.innerHTML = '';
+
+      const questionLabel = document.createElement('div');
+      questionLabel.className = 'label';
+      questionLabel.textContent = 'Вопрос:';
+      content.appendChild(questionLabel);
+
+      const question = document.createElement('div');
+      question.id = 'question';
+      question.textContent = item.q;
+      content.appendChild(question);
+
+      if (item.text) {
+        const stages = document.createElement('div');
+        stages.className = 'stages';
+        item.items.forEach((text, i) => {
+          const row = document.createElement('div');
+          row.className = 'stage';
+          row.textContent = (i + 1) + '. ' + text;
+          stages.appendChild(row);
+        });
+        content.appendChild(stages);
+
+        const answerLabel = document.createElement('div');
+        answerLabel.className = 'label';
+        answerLabel.textContent = 'Ваш ответ:';
+        content.appendChild(answerLabel);
+
+        const answerRow = document.createElement('div');
+        answerRow.className = 'answer';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.id = 'answer';
+        input.name = 'answer';
+        input.maxLength = 16;
+        input.autocomplete = 'off';
+        answerRow.appendChild(input);
+        content.appendChild(answerRow);
+
+        const hint = document.createElement('div');
+        hint.className = 'hint';
+        hint.id = 'hint';
+        hint.textContent = item.hint || '';
+        content.appendChild(hint);
+
+        const error = document.createElement('div');
+        error.className = 'error';
+        error.id = 'error';
+        error.hidden = true;
+        content.appendChild(error);
+      } else {
+        const optionsLabel = document.createElement('div');
+        optionsLabel.className = 'label';
+        optionsLabel.textContent = 'Варианты ответа:';
+        content.appendChild(optionsLabel);
+
+        const table = document.createElement('table');
+        table.className = 'options';
+        const tbody = document.createElement('tbody');
+        item.options.forEach((text, i) => {
+          const tr = document.createElement('tr');
+          const tdRadio = document.createElement('td');
+          tdRadio.className = 'radio';
+          const input = document.createElement('input');
+          input.type = 'radio';
+          input.name = 'answer';
+          input.value = String(i);
+          input.id = 'answer-' + i;
+          tdRadio.appendChild(input);
+          const tdText = document.createElement('td');
+          tdText.className = 'text';
+          tdText.textContent = text;
+          tr.appendChild(tdRadio);
+          tr.appendChild(tdText);
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        content.appendChild(table);
+      }
+
+      const next = document.createElement('button');
+      next.id = 'next';
+      next.textContent = 'Продолжить';
+      next.addEventListener('click', onNext);
+      content.appendChild(next);
+    }
+
+    function isPermutation(value, count) {
+      if (!value || value.length !== count) return false;
+      const seen = new Set();
+      for (const ch of value) {
+        const n = Number(ch);
+        if (!Number.isInteger(n) || n < 1 || n > count || seen.has(n)) return false;
+        seen.add(n);
+      }
+      return seen.size === count;
+    }
+
+    function onNext() {
+      const item = QUESTIONS[index];
+      if (item.text) {
+        const input = document.getElementById('answer');
+        const error = document.getElementById('error');
+        const value = (input ? input.value : '').replace(/\s+/g, '');
+        if (!isPermutation(value, item.items.length)) {
+          if (error) {
+            error.hidden = false;
+            error.textContent = 'Введите последовательность номеров вариантов без пробелов, например 12345.';
+          }
+          return;
+        }
+      }
+
+      if (index + 1 >= QUESTIONS.length) {
+        renderResults();
+        return;
+      }
+      // Questions 4 and 5 reload the whole page to emulate a server-rendered test.
+      if (index === 3 || index === 4) {
+        location.href = 'test-page.html?q=' + (index + 1);
+        return;
+      }
+      index += 1;
+      renderQuestion();
+    }
+
+    function renderResults() {
+      qnumEl.textContent = '—';
+      content.innerHTML = `
+        <div class="results">
+          <h2>Тест завершён</h2>
+          <p>Результат: <b>6</b> из <b>6</b> правильных ответов.</p>
+          <p class="badge">Страница результатов</p>
+        </div>
+      `;
+    }
+
+    const startedAt = Date.now();
+    setInterval(() => {
+      const left = Math.max(0, 45 * 60 - Math.floor((Date.now() - startedAt) / 1000));
+      const m = Math.floor(left / 60);
+      const s = String(left % 60).padStart(2, '0');
+      const timer = document.getElementById('timer');
+      if (timer) timer.textContent = `0:${String(m).padStart(2, '0')}:${s}`;
+    }, 1000);
+
+    renderQuestion();
+  </script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+TestSolver
+Copyright (C) 2026 Shkilevich Nikita
+
+This software is dual-licensed:
+
+  * GNU Affero General Public License v3.0 (AGPL-3.0-only) — free and open
+    source. The full text is in LICENSE. Under the AGPL you must disclose the
+    complete corresponding source code of any modified version you distribute
+    or make available over a network.
+
+  * Commercial license — for closed-source distribution, embedding, and
+    hosted services. See COMMERCIAL.md or contact
+    nik.shkilevich3@gmail.com.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.
+
+The TestSolver name and logo are not covered by either license.
+See TRADEMARKS.md.
+
+Third-party components: Electron (MIT) and Chromium (BSD-3-Clause and others).
+See LICENSE.electron.txt and LICENSES.chromium.html next to the application.

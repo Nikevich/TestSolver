@@ -1,0 +1,41 @@
+appId: local.testsolver
+productName: TestSolver
+copyright: Copyright © 2026 Shkilevich Nikita
+asar: true
+compression: normal
+directories:
+  output: dist
+  buildResources: assets
+files:
+  - src/**/*
+  - package.json
+  - LICENSE
+  - COMMERCIAL.md
+  - THIRD-PARTY-NOTICES.md
+  - TRADEMARKS.md
+  - "!**/*.map"
+extraResources:
+  - from: LICENSE
+    to: LICENSE
+  - from: COMMERCIAL.md
+    to: COMMERCIAL.md
+  - from: THIRD-PARTY-NOTICES.md
+    to: THIRD-PARTY-NOTICES.md
+  - from: TRADEMARKS.md
+    to: TRADEMARKS.md
+win:
+  icon: assets/icon.ico
+  target:
+    - nsis
+    - portable
+  artifactName: "${productName}-${version}-${arch}.${ext}"
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: TestSolver
+  license: assets/installer-license.txt
+portable:
+  artifactName: "${productName}-${version}-portable.${ext}"
