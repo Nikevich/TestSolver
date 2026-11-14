@@ -8,6 +8,8 @@ directories:
   buildResources: assets
 files:
   - src/**/*
+  - assets/icon.ico
+  - assets/icon.png
   - package.json
   - LICENSE
   - COMMERCIAL.md

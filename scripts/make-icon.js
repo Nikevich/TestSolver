@@ -4,7 +4,7 @@
 'use strict';
 
 /**
- * Generates assets/icon.ico (256x256, PNG-compressed) and assets/icon.png
+ * Generates assets/icon.ico (multi-size, PNG-compressed) and assets/icon.png
  * (512x512, used by Linux packages) without any image libraries.
  *   node scripts/make-icon.js
  */
@@ -13,7 +13,7 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 
-const ICO_SIZE = 256;
+const ICO_SIZES = [16, 24, 32, 48, 64, 128, 256];
 const PNG_SIZE = 512;
 const SS = 4; // supersampling factor
 
@@ -45,7 +45,7 @@ function render(size) {
 
   const radius = big * 0.22;
   const margin = big * 0.03;
-  const checkWidth = big * 0.085;
+  const checkWidth = big * (size <= 24 ? 0.12 : 0.085);
   const points = [
     [big * 0.27, big * 0.53],
     [big * 0.43, big * 0.69],
@@ -141,27 +141,33 @@ function toPng(rgba, size) {
   ]);
 }
 
-function toIco(png) {
+function toIco(images) {
   const header = Buffer.alloc(6);
   header.writeUInt16LE(0, 0);
   header.writeUInt16LE(1, 2);
-  header.writeUInt16LE(1, 4);
+  header.writeUInt16LE(images.length, 4);
 
-  const entry = Buffer.alloc(16);
-  entry[0] = 0; // 256 px
-  entry[1] = 0;
-  entry[2] = 0;
-  entry[3] = 0;
-  entry.writeUInt16LE(1, 4);
-  entry.writeUInt16LE(32, 6);
-  entry.writeUInt32LE(png.length, 8);
-  entry.writeUInt32LE(22, 12);
+  const entries = [];
+  let offset = 6 + images.length * 16;
+  for (const { size, png } of images) {
+    const entry = Buffer.alloc(16);
+    entry[0] = size >= 256 ? 0 : size; // 0 means 256
+    entry[1] = size >= 256 ? 0 : size;
+    entry[2] = 0; // palette
+    entry[3] = 0; // reserved
+    entry.writeUInt16LE(1, 4); // color planes
+    entry.writeUInt16LE(32, 6); // bits per pixel
+    entry.writeUInt32LE(png.length, 8);
+    entry.writeUInt32LE(offset, 12);
+    entries.push(entry);
+    offset += png.length;
+  }
 
-  return Buffer.concat([header, entry, png]);
+  return Buffer.concat([header, ...entries, ...images.map((image) => image.png)]);
 }
 
-const icoPng = toPng(render(ICO_SIZE), ICO_SIZE);
-const ico = toIco(icoPng);
+const icoImages = ICO_SIZES.map((size) => ({ size, png: toPng(render(size), size) }));
+const ico = toIco(icoImages);
 const png = toPng(render(PNG_SIZE), PNG_SIZE);
 
 const assets = path.join(__dirname, '..', 'assets');
@@ -169,5 +175,5 @@ fs.mkdirSync(assets, { recursive: true });
 fs.writeFileSync(path.join(assets, 'icon.png'), png);
 fs.writeFileSync(path.join(assets, 'icon.ico'), ico);
 
-console.log(`assets/icon.ico: ${(ico.length / 1024).toFixed(1)} KB (${ICO_SIZE}x${ICO_SIZE})`);
+console.log(`assets/icon.ico: ${(ico.length / 1024).toFixed(1)} KB (${ICO_SIZES.join(', ')})`);
 console.log(`assets/icon.png: ${(png.length / 1024).toFixed(1)} KB (${PNG_SIZE}x${PNG_SIZE})`);
