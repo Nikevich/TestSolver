@@ -32,6 +32,13 @@ app.setAppUserModelId('local.testsolver');
 const TOOLBAR_H = 44;
 const STATUS_H = 28;
 const HEADLESS = process.argv.includes('--headless');
+const WINDOW_ICON = path.join(
+  __dirname,
+  '..',
+  '..',
+  'assets',
+  process.platform === 'win32' ? 'icon.ico' : 'icon.png'
+);
 
 let mainWindow = null;
 let siteView = null;
@@ -191,6 +198,7 @@ function createWindow() {
     minHeight: 680,
     backgroundColor: '#f3f4f6',
     title: 'TestSolver',
+    icon: WINDOW_ICON,
     show: false,
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'preload.js'),
