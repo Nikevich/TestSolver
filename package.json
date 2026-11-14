@@ -1,6 +1,6 @@
 {
   "name": "testsolver",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Local test solver: reads questions from the built-in browser and answers them with Ollama or opencode",
   "main": "src/main/main.js",
   "author": {
