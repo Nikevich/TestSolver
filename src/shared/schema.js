@@ -12,16 +12,42 @@
  */
 
 const GROUPS = [
+  { id: 'ui', title: { ru: 'Интерфейс', en: 'Interface' } },
   { id: 'backend', title: { ru: 'Бэкенд', en: 'Backend' } },
   { id: 'ollama', title: 'Ollama' },
   { id: 'opencode', title: 'opencode' },
   { id: 'automation', title: { ru: 'Автоматизация', en: 'Automation' } },
   { id: 'vision', title: 'Vision' },
-  { id: 'logging', title: { ru: 'Логи', en: 'Logging' } },
-  { id: 'ui', title: { ru: 'Интерфейс', en: 'Interface' } }
+  { id: 'logging', title: { ru: 'Логи', en: 'Logging' } }
 ];
 
 const FIELDS = [
+  {
+    key: 'ui.language', group: 'ui', label: { ru: 'Язык интерфейса', en: 'Interface language' }, type: 'select', default: 'en',
+    options: [
+      { value: 'ru', label: { ru: 'Русский', en: 'Russian' } },
+      { value: 'en', label: { ru: 'Английский', en: 'English' } }
+    ],
+    help: {
+      ru: 'Язык интерфейса, статусов автопрогона и промптов к модели.',
+      en: 'Language of the interface, run statuses and model prompts.'
+    }
+  },
+  {
+    key: 'ui.panelWidth', group: 'ui', label: { ru: 'Ширина панели', en: 'Panel width' }, type: 'number',
+    default: 400, min: 320, max: 900, step: 10, unit: 'px',
+    help: { ru: 'Перетаскивается мышью.', en: 'Adjustable by dragging.' }
+  },
+  {
+    key: 'ui.theme', group: 'ui', label: { ru: 'Тема', en: 'Theme' }, type: 'select', default: 'system',
+    options: [
+      { value: 'system', label: { ru: 'Как в системе', en: 'Same as system' } },
+      { value: 'dark', label: { ru: 'Тёмная', en: 'Dark' } },
+      { value: 'light', label: { ru: 'Светлая', en: 'Light' } }
+    ],
+    help: { ru: 'Оформление панели.', en: 'Panel appearance.' }
+  },
+
   {
     key: 'backend', group: 'backend', label: { ru: 'Бэкенд', en: 'Backend' }, type: 'select', default: 'ollama',
     options: [
@@ -202,32 +228,6 @@ const FIELDS = [
       { value: 'error', label: 'error' }
     ],
     help: { ru: 'Подробность журнала.', en: 'Log verbosity.' }
-  },
-
-  {
-    key: 'ui.language', group: 'ui', label: { ru: 'Язык интерфейса', en: 'Interface language' }, type: 'select', default: 'en',
-    options: [
-      { value: 'ru', label: { ru: 'Русский', en: 'Russian' } },
-      { value: 'en', label: { ru: 'Английский', en: 'English' } }
-    ],
-    help: {
-      ru: 'Язык интерфейса, статусов автопрогона и промптов к модели.',
-      en: 'Language of the interface, run statuses and model prompts.'
-    }
-  },
-  {
-    key: 'ui.panelWidth', group: 'ui', label: { ru: 'Ширина панели', en: 'Panel width' }, type: 'number',
-    default: 400, min: 320, max: 900, step: 10, unit: 'px',
-    help: { ru: 'Перетаскивается мышью.', en: 'Adjustable by dragging.' }
-  },
-  {
-    key: 'ui.theme', group: 'ui', label: { ru: 'Тема', en: 'Theme' }, type: 'select', default: 'system',
-    options: [
-      { value: 'system', label: { ru: 'Как в системе', en: 'Same as system' } },
-      { value: 'dark', label: { ru: 'Тёмная', en: 'Dark' } },
-      { value: 'light', label: { ru: 'Светлая', en: 'Light' } }
-    ],
-    help: { ru: 'Оформление панели.', en: 'Panel appearance.' }
   }
 ];
 
