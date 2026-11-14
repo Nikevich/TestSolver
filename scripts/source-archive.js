@@ -20,6 +20,7 @@ const entries = [
   'scripts',
   'assets',
   'docs',
+  '.github',
   'package.json',
   'package-lock.json',
   'electron-builder.yml',

@@ -4,7 +4,8 @@
 'use strict';
 
 /**
- * Generates assets/icon.ico (256x256, PNG-compressed) without any image libraries.
+ * Generates assets/icon.ico (256x256, PNG-compressed) and assets/icon.png
+ * (512x512, used by Linux packages) without any image libraries.
  *   node scripts/make-icon.js
  */
 
@@ -12,7 +13,8 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 
-const SIZE = 256;
+const ICO_SIZE = 256;
+const PNG_SIZE = 512;
 const SS = 4; // supersampling factor
 
 function clamp01(value) {
@@ -37,9 +39,9 @@ function distanceToSegment(px, py, ax, ay, bx, by) {
   return Math.hypot(px - x, py - y);
 }
 
-function render() {
-  const big = SIZE * SS;
-  const pixels = new Float32Array(SIZE * SIZE * 4);
+function render(size) {
+  const big = size * SS;
+  const pixels = new Float32Array(size * size * 4);
 
   const radius = big * 0.22;
   const margin = big * 0.03;
@@ -69,7 +71,7 @@ function render() {
         pixel = [255, 255, 255, 255];
       }
 
-      const index = (Math.floor(y / SS) * SIZE + Math.floor(x / SS)) * 4;
+      const index = (Math.floor(y / SS) * size + Math.floor(x / SS)) * 4;
       pixels[index] += pixel[0];
       pixels[index + 1] += pixel[1];
       pixels[index + 2] += pixel[2];
@@ -78,8 +80,8 @@ function render() {
   }
 
   const samples = SS * SS;
-  const rgba = Buffer.alloc(SIZE * SIZE * 4);
-  for (let i = 0; i < SIZE * SIZE; i += 1) {
+  const rgba = Buffer.alloc(size * size * 4);
+  for (let i = 0; i < size * size; i += 1) {
     rgba[i * 4] = Math.round(pixels[i * 4] / samples);
     rgba[i * 4 + 1] = Math.round(pixels[i * 4 + 1] / samples);
     rgba[i * 4 + 2] = Math.round(pixels[i * 4 + 2] / samples);
@@ -115,20 +117,20 @@ function chunk(type, data) {
   return Buffer.concat([length, typeBuffer, data, crc]);
 }
 
-function toPng(rgba) {
+function toPng(rgba, size) {
   const header = Buffer.alloc(13);
-  header.writeUInt32BE(SIZE, 0);
-  header.writeUInt32BE(SIZE, 4);
+  header.writeUInt32BE(size, 0);
+  header.writeUInt32BE(size, 4);
   header[8] = 8;
   header[9] = 6;
   header[10] = 0;
   header[11] = 0;
   header[12] = 0;
 
-  const raw = Buffer.alloc((SIZE * 4 + 1) * SIZE);
-  for (let y = 0; y < SIZE; y += 1) {
-    raw[y * (SIZE * 4 + 1)] = 0;
-    rgba.copy(raw, y * (SIZE * 4 + 1) + 1, y * SIZE * 4, (y + 1) * SIZE * 4);
+  const raw = Buffer.alloc((size * 4 + 1) * size);
+  for (let y = 0; y < size; y += 1) {
+    raw[y * (size * 4 + 1)] = 0;
+    rgba.copy(raw, y * (size * 4 + 1) + 1, y * size * 4, (y + 1) * size * 4);
   }
 
   return Buffer.concat([
@@ -158,14 +160,14 @@ function toIco(png) {
   return Buffer.concat([header, entry, png]);
 }
 
-const rgba = render();
-const png = toPng(rgba);
-const ico = toIco(png);
+const icoPng = toPng(render(ICO_SIZE), ICO_SIZE);
+const ico = toIco(icoPng);
+const png = toPng(render(PNG_SIZE), PNG_SIZE);
 
 const assets = path.join(__dirname, '..', 'assets');
 fs.mkdirSync(assets, { recursive: true });
 fs.writeFileSync(path.join(assets, 'icon.png'), png);
 fs.writeFileSync(path.join(assets, 'icon.ico'), ico);
 
-console.log(`assets/icon.ico: ${(ico.length / 1024).toFixed(1)} KB`);
-console.log(`assets/icon.png: ${(png.length / 1024).toFixed(1)} KB`);
+console.log(`assets/icon.ico: ${(ico.length / 1024).toFixed(1)} KB (${ICO_SIZE}x${ICO_SIZE})`);
+console.log(`assets/icon.png: ${(png.length / 1024).toFixed(1)} KB (${PNG_SIZE}x${PNG_SIZE})`);

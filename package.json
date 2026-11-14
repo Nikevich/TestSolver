@@ -3,7 +3,18 @@
   "version": "1.0.0",
   "description": "Local test solver: reads questions from the built-in browser and answers them with Ollama or opencode",
   "main": "src/main/main.js",
-  "author": "Shkilevich Nikita",
+  "author": {
+    "name": "Shkilevich Nikita",
+    "email": "nik.shkilevich3@gmail.com"
+  },
+  "homepage": "https://github.com/Nikevich/TestSolver",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Nikevich/TestSolver.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Nikevich/TestSolver/issues"
+  },
   "license": "AGPL-3.0-only OR LicenseRef-Commercial",
   "private": true,
   "scripts": {
@@ -13,9 +24,11 @@
     "icon": "node scripts/make-icon.js",
     "screenshot": "electron scripts/screenshot.js",
     "source:archive": "node scripts/source-archive.js",
-    "dist": "electron-builder --win nsis",
-    "dist:portable": "electron-builder --win portable",
-    "dist:all": "electron-builder --win nsis portable"
+    "dist": "electron-builder --win nsis portable --publish never",
+    "dist:win": "electron-builder --win nsis portable --publish never",
+    "dist:portable": "electron-builder --win portable --publish never",
+    "dist:linux": "electron-builder --linux AppImage deb --publish never",
+    "dist:all": "electron-builder --win nsis portable --linux AppImage deb --publish never"
   },
   "dependencies": {},
   "devDependencies": {

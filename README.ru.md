@@ -139,22 +139,25 @@ TestSolver.exe --headless        # окно не показывается (дл�
 
 ---
 
-## Сборка exe
+## Сборка инсталляторов
 
 ```powershell
 npm install
-npm run dist                    # NSIS-инсталлятор + portable
-npm run dist:portable           # только portable
+npm run dist                    # Windows: NSIS-инсталлятор + portable
+npm run dist:win                # то же, что dist
+npm run dist:linux              # Linux: AppImage + deb (запускать на Linux)
 ```
 
-Результат в `dist\`:
+Результат в `dist/`:
 
 | Файл | Что это |
 |---|---|
-| `TestSolver-1.0.0-x64.exe` | NSIS-инсталлятор (рекомендуется): установка в `%LOCALAPPDATA%`, ярлыки |
-| `TestSolver-1.0.0-portable.exe` | один файл без установки, распаковывается в `%TEMP%` при запуске |
+| `TestSolver-1.0.0-x64.exe` | Windows NSIS-инсталлятор (рекомендуется): установка в `%LOCALAPPDATA%`, ярлыки |
+| `TestSolver-1.0.0-portable.exe` | Windows: один файл без установки, распаковывается в `%TEMP%` при запуске |
+| `TestSolver-1.0.0-x64.AppImage` | Linux: портативная сборка без установки |
+| `TestSolver-1.0.0-x64.deb` | Linux: пакет для Debian/Ubuntu |
 
-`npm` и Electron нужны только на машине сборки. Пользователь получает готовый exe.
+`npm` и Electron нужны только на машине сборки. Пользователь получает готовый бинарник. Linux-пакеты собираются на Linux (локально или в CI).
 
 Если `npm install` не скачал бинарник Electron (политика `allowScripts`):
 
@@ -162,7 +165,18 @@ npm run dist:portable           # только portable
 node node_modules\electron\install.js
 ```
 
-Неподписанный exe вызовет предупреждение SmartScreen («Подробнее → Выполнить всё равно»). Для личного инструмента это нормально; для распространения нужен код-сертификат.
+Неподписанные бинарники вызывают предупреждение SmartScreen в Windows («Подробнее → Выполнить всё равно»), а для AppImage в Linux может потребоваться `libfuse2`. Для личного инструмента это нормально; для распространения нужно подписывать.
+
+### Релизы
+
+Релизы собирает GitHub Actions при пуше тега `v*`:
+
+```powershell
+npm version patch -m "release: v%s"
+git push origin main --follow-tags
+```
+
+Workflow проверяет совпадение тега с `package.json`, собирает Windows- и Linux-ассеты и прикладывает к GitHub Release архив исходников (AGPL) и `SHA256SUMS.txt`.
 
 ---
 
@@ -179,6 +193,7 @@ Smoke-тест использует `fixtures/test-page.html` — локальн
 Структура:
 
 ```
+.github/         GitHub Actions: ci.yml, release.yml
 src/
   main/          main.js, automation.js, dom.js, config.js, logger.js, prompts.js, solver.js
   main/llm/      ollama.js, opencode.js
@@ -186,7 +201,7 @@ src/
   renderer/      index.html, app.js, styles.css
   shared/        schema.js (настройки и дефолты), ipc.js
 fixtures/        test-page.html
-assets/          icon.ico, icon.png (генерируются `npm run icon`)
+assets/          icon.ico (256px), icon.png (512px) — генерируются `npm run icon`
 scripts/         smoke.js, test-adapters.js, make-icon.js, screenshot.js
 ```
 

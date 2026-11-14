@@ -29,6 +29,14 @@ win:
     - nsis
     - portable
   artifactName: "${productName}-${version}-${arch}.${ext}"
+linux:
+  icon: assets/icon.png
+  category: Education
+  maintainer: Shkilevich Nikita <nik.shkilevich3@gmail.com>
+  target:
+    - AppImage
+    - deb
+  artifactName: "${productName}-${version}-${arch}.${ext}"
 nsis:
   oneClick: false
   perMachine: false

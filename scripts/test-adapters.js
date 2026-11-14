@@ -11,6 +11,7 @@
  *   node scripts/test-adapters.js
  */
 
+const fs = require('fs');
 const http = require('http');
 const assert = require('assert');
 
@@ -114,7 +115,11 @@ async function main() {
   // --- opencode -------------------------------------------------------
   const opencode = require('../src/main/llm/opencode');
   const binary = await opencode.resolveBinary('opencode');
-  check('opencode: binary resolved to .exe', () => assert.ok(/\.exe$/i.test(binary.path), binary.path));
+  check('opencode: binary resolved and executable', () => {
+    assert.ok(binary.path, binary.path);
+    assert.ok(fs.existsSync(binary.path), binary.path);
+    if (process.platform !== 'win32') fs.accessSync(binary.path, fs.constants.X_OK);
+  });
 
   const cliAnswer = await opencode.solve(
     {

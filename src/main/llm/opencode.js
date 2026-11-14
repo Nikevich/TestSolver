@@ -58,23 +58,57 @@ function expandShim(shimPath) {
   return null;
 }
 
+const IS_WINDOWS = process.platform === 'win32';
+
+function isExecutableFile(file) {
+  try {
+    if (!fs.statSync(file).isFile()) return false;
+    if (!IS_WINDOWS) fs.accessSync(file, fs.constants.X_OK);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function notFoundError() {
+  return new Error(
+    `opencode не найден в PATH. Установите его или укажите полный путь в настройках (opencode.bin).`
+  );
+}
+
 async function resolveBinary(configured) {
   const bin = String(configured || 'opencode').trim();
 
   if (/[\\/]/.test(bin)) {
     if (!fs.existsSync(bin)) throw new Error(`Файл не найден: ${bin}`);
+    if (!IS_WINDOWS) {
+      if (!isExecutableFile(bin)) throw new Error(`Файл не является исполняемым: ${bin}`);
+      return { path: bin };
+    }
     if (/\.exe$/i.test(bin)) return { path: bin };
     const real = expandShim(bin);
     return real ? { path: real } : { path: bin, viaShell: true };
+  }
+
+  if (!IS_WINDOWS) {
+    try {
+      const output = await execFileP('which', [bin]);
+      const candidate = String(output || '')
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .find(Boolean);
+      if (candidate && isExecutableFile(candidate)) return { path: candidate };
+    } catch (_) {
+      /* fall through to the error below */
+    }
+    throw notFoundError();
   }
 
   let output = '';
   try {
     output = await execFileP('where.exe', [bin]);
   } catch (_) {
-    throw new Error(
-      `opencode не найден в PATH. Установите его или укажите полный путь в настройках (opencode.bin).`
-    );
+    throw notFoundError();
   }
 
   const lines = output

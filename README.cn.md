@@ -139,22 +139,25 @@ TestSolver.exe --headless        # 不显示窗口（启动检查）
 
 ---
 
-## 构建 exe
+## 构建安装包
 
 ```powershell
 npm install
-npm run dist                    # NSIS 安装包 + 便携版
-npm run dist:portable           # 仅便携版
+npm run dist                    # Windows：NSIS 安装包 + 便携版
+npm run dist:win                # 同 dist
+npm run dist:linux              # Linux：AppImage + deb（需在 Linux 上运行）
 ```
 
-输出在 `dist\`：
+输出在 `dist/`：
 
 | 文件 | 说明 |
 |---|---|
-| `TestSolver-1.0.0-x64.exe` | NSIS 安装包（推荐）：安装到 `%LOCALAPPDATA%`，创建快捷方式 |
-| `TestSolver-1.0.0-portable.exe` | 单文件免安装，启动时解压到 `%TEMP%` |
+| `TestSolver-1.0.0-x64.exe` | Windows NSIS 安装包（推荐）：安装到 `%LOCALAPPDATA%`，创建快捷方式 |
+| `TestSolver-1.0.0-portable.exe` | Windows：单文件免安装，启动时解压到 `%TEMP%` |
+| `TestSolver-1.0.0-x64.AppImage` | Linux：免安装便携版 |
+| `TestSolver-1.0.0-x64.deb` | Linux：Debian/Ubuntu 安装包 |
 
-`npm` 和 Electron 只在构建机上需要。用户拿到的是现成的 exe。
+`npm` 和 Electron 只在构建机上需要。用户拿到的是现成的二进制文件。Linux 包需在 Linux（本地或 CI）上构建。
 
 如果 `npm install` 没有下载 Electron 二进制（`allowScripts` 策略）：
 
@@ -162,7 +165,18 @@ npm run dist:portable           # 仅便携版
 node node_modules\electron\install.js
 ```
 
-未签名的 exe 会触发 SmartScreen 警告（“更多信息 → 仍要运行”）。对个人工具而言这很正常；若要分发则需要代码签名证书。
+未签名的二进制会触发 Windows SmartScreen 警告（“更多信息 → 仍要运行”），Linux 上的 AppImage 可能需要 `libfuse2`。对个人工具而言这很正常；若要分发则需要签名。
+
+### 发布
+
+推送 `v*` 标签时由 GitHub Actions 构建发布：
+
+```powershell
+npm version patch -m "release: v%s"
+git push origin main --follow-tags
+```
+
+工作流会校验标签与 `package.json` 一致，构建 Windows 和 Linux 资源，并把 AGPL 源码归档和 `SHA256SUMS.txt` 附加到 GitHub Release。
 
 ---
 
@@ -179,6 +193,7 @@ npm run test:adapters  # Ollama 适配器（模拟服务器）和真实 opencode
 目录结构：
 
 ```
+.github/         GitHub Actions: ci.yml, release.yml
 src/
   main/          main.js, automation.js, dom.js, config.js, logger.js, prompts.js, solver.js
   main/llm/      ollama.js, opencode.js
@@ -186,7 +201,7 @@ src/
   renderer/      index.html, app.js, styles.css
   shared/        schema.js（设置与默认值）, ipc.js
 fixtures/        test-page.html
-assets/          icon.ico, icon.png（由 `npm run icon` 生成）
+assets/          icon.ico (256px), icon.png (512px)，由 `npm run icon` 生成
 scripts/         smoke.js, test-adapters.js, make-icon.js, screenshot.js
 ```
 
